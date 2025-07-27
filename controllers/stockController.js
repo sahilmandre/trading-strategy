@@ -1,8 +1,9 @@
 // File: controllers/stockController.js
 
 import { fetchQuoteData } from '../services/dataService.js';
-// --- Import the new analysis function ---
-import { calculateMomentumForAllStocks } from '../services/analysisService.js';
+// The analysis service is now only used by the scheduled job, not directly by the controller.
+// import { calculateMomentumForAllStocks } from '../services/analysisService.js';
+import StockData from '../models/stockDataModel.js'; // Import the model to read from the database
 
 /**
  * Controller to handle fetching live quote data for a list of tickers.
@@ -46,15 +47,23 @@ export const getQuotes = async (req, res) => {
 };
 
 /**
- * Controller for fetching and returning momentum data for all stocks.
+ * Controller for fetching momentum data from the database cache.
  * @param {object} req - The Express request object.
  * @param {object} res - The Express response object.
  */
 export const getMomentumData = async (req, res) => {
-    console.log("Received request for /api/stocks/momentum");
+    console.log("Received request for /api/stocks/momentum - fetching from DB cache.");
     try {
-        // Call the analysis service to perform the calculation
-        const momentumData = await calculateMomentumForAllStocks();
+        // Fetch the pre-calculated data from the MongoDB collection.
+        // Sort by momentumScore in descending order to get the top performers first.
+        const momentumData = await StockData.find().sort({ momentumScore: -1 });
+
+        if (!momentumData || momentumData.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'No stock data found in cache. The daily update job may not have run yet.'
+            });
+        }
 
         res.status(200).json({
             success: true,
@@ -66,7 +75,7 @@ export const getMomentumData = async (req, res) => {
         console.error(`[stockController] Error in getMomentumData: ${error.message}`);
         res.status(500).json({
             success: false,
-            message: 'An internal server error occurred while calculating momentum data.',
+            message: 'An internal server error occurred while fetching momentum data from cache.',
         });
     }
 };
