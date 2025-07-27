@@ -45,6 +45,7 @@ export const getRebalanceState = async (req, res) => {
 export const saveRebalanceState = async (req, res) => {
   try {
     const { totalAmount, stocks } = req.body;
+    console.log('[rebalanceController] Received data for saving:', { totalAmount, stocks });
 
     // Find the single document and update it with the new state from the request body.
     // The 'upsert: true' option creates the document if it's not found.
@@ -54,6 +55,8 @@ export const saveRebalanceState = async (req, res) => {
       { totalAmount, stocks },
       { new: true, upsert: true }
     );
+
+    console.log('[rebalanceController] Updated state in DB:', updatedState);
 
     res.status(200).json({
       success: true,
