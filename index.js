@@ -9,6 +9,7 @@ import { nifty500 } from "./config/nifty500.js";
 
 // --- Route Imports ---
 import stockRoutes from "./routes/stockRoutes.js";
+import portfolioRoutes from "./routes/portfolioRoutes.js"; // <-- Import portfolio routes
 
 // --- Job Imports ---
 import {
@@ -43,6 +44,7 @@ mongoose
 
 // --- API Routes ---
 app.use("/api/stocks", stockRoutes);
+app.use("/api/portfolios", portfolioRoutes); // <-- Use portfolio routes
 
 app.get("/", (req, res) => {
   res.send("Welcome to the Stock Screener API!");
@@ -51,13 +53,11 @@ app.get("/", (req, res) => {
 // --- Scheduled Tasks (Cron Jobs) ---
 console.log("🕒 Setting up scheduled jobs...");
 
-// This job updates our stock data cache. Runs every hour at minute 0.
 cron.schedule("0 * * * *", runDailyStockUpdate, {
   scheduled: true,
   timezone: "Asia/Kolkata",
 });
 
-// This job creates the monthly model portfolios. Runs on the 1st of every month.
 cron.schedule("0 1 1 * *", runMonthlyPortfolioCreation, {
   scheduled: true,
   timezone: "Asia/Kolkata",
@@ -69,7 +69,6 @@ app.listen(PORT, () => {
   console.log(`🚀 SERVER IS UP AND RUNNING ON PORT: ${PORT}`);
   console.log("================================================\n");
 
-  // Run the update job once on server start for immediate data.
   console.log(
     ">>> TRIGGERING INITIAL DATA ANALYSIS JOB. THIS WILL TAKE SEVERAL MINUTES. <<<"
   );
