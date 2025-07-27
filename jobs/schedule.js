@@ -9,100 +9,178 @@ import Portfolio from '../models/portfolioModel.js';
  * then updates or creates entries in the StockData collection in MongoDB.
  */
 export const runDailyStockUpdate = async () => {
-  console.log('JOB_STARTED: Running daily full stock data update (Momentum & Alpha)...');
+  console.log("JOB_STARTED: Running daily EXPERT stock data update...");
   try {
     const analysisData = await runFullStockAnalysis();
 
     if (!analysisData || analysisData.length === 0) {
-      console.log('JOB_INFO: No analysis data received from service. Skipping update.');
+      console.log(
+        "JOB_INFO: No analysis data received from service. Skipping update."
+      );
       return;
     }
 
-    const operations = analysisData.map(stock => ({
+    const operations = analysisData.map((stock) => ({
       updateOne: {
         filter: { ticker: stock.ticker },
-        update: { 
+        update: {
           $set: {
             ...stock,
-            lastRefreshed: new Date()
-          } 
+            lastRefreshed: new Date(),
+          },
         },
         upsert: true,
       },
     }));
 
     const result = await StockData.bulkWrite(operations);
-    console.log(`JOB_SUCCESS: Stock data updated. ${result.upsertedCount} docs created, ${result.modifiedCount} docs modified.`);
-
+    console.log(
+      `JOB_SUCCESS: Stock data updated. ${result.upsertedCount} docs created, ${result.modifiedCount} docs modified.`
+    );
   } catch (error) {
-    console.error('JOB_ERROR: An error occurred during the daily stock update job.', error);
+    console.error(
+      "JOB_ERROR: An error occurred during the daily stock update job.",
+      error
+    );
   }
 };
 
 /**
- * This job runs once a month to generate the model portfolios.
- * It selects the top 20 stocks for both Momentum and Alpha strategies.
+ * This job runs once a month to generate the model portfolios based on expert strategies.
+ * It selects the top 10 stocks for both Momentum and Alpha strategies.
  */
 export const runMonthlyPortfolioCreation = async () => {
-    console.log('JOB_STARTED: Running monthly portfolio creation...');
-    try {
-        const date = new Date();
-        const monthName = date.toLocaleString('default', { month: 'long' });
-        const year = date.getFullYear();
-
-        // 1. Create Momentum Portfolio
-        const topMomentumStocks = await StockData.find()
-            .sort({ momentumScore: -1 })
-            .limit(20)
-            .lean(); // .lean() returns plain JS objects, which is faster
-
-        if (topMomentumStocks.length > 0) {
-            const momentumPortfolioName = `Momentum Portfolio - ${monthName} ${year}`;
-            await Portfolio.findOneAndUpdate(
-                { name: momentumPortfolioName },
-                {
-                    name: momentumPortfolioName,
-                    strategy: 'Momentum',
-                    stocks: topMomentumStocks.map(s => ({
-                        ticker: s.ticker,
-                        momentumScore: s.momentumScore,
-                        priceAtAddition: s.currentPrice
-                    }))
-                },
-                { upsert: true, new: true } // Upsert ensures we don't create duplicates if job runs twice
-            );
-            console.log(`JOB_SUCCESS: Successfully created/updated ${momentumPortfolioName}`);
-        } else {
-            console.log('JOB_INFO: No momentum stocks found to create portfolio.');
-        }
-
-        // 2. Create Alpha Portfolio
-        const topAlphaStocks = await StockData.find({ alpha: { $gt: 0 } })
-            .sort({ alpha: -1 })
-            .limit(20)
-            .lean();
-        
-        if (topAlphaStocks.length > 0) {
-            const alphaPortfolioName = `Alpha Portfolio - ${monthName} ${year}`;
-            await Portfolio.findOneAndUpdate(
-                { name: alphaPortfolioName },
-                {
-                    name: alphaPortfolioName,
-                    strategy: 'Alpha',
-                    stocks: topAlphaStocks.map(s => ({
-                        ticker: s.ticker,
-                        alpha: s.alpha,
-                        priceAtAddition: s.currentPrice
-                    }))
-                },
-                { upsert: true, new: true }
-            );
-            console.log(`JOB_SUCCESS: Successfully created/updated ${alphaPortfolioName}`);
-        } else {
-            console.log('JOB_INFO: No alpha stocks found to create portfolio.');
-        }
-
-    } catch (error) {
-        console.error('JOB_ERROR: An error occurred during the monthly portfolio creation job.', error);
+  console.log("JOB_STARTED: Running EXPERT monthly portfolio creation...");
+  try {
+    const allStocks = await StockData.find().lean();
+    if (allStocks.length === 0) {
+      console.log(
+        "JOB_INFO: No stock data in cache. Cannot create portfolios."
+      );
+      return;
     }
+
+    const date = new Date();
+    const monthName = date.toLocaleString("default", { month: "long" });
+    const year = date.getFullYear();
+
+    // --- 1. Create "Momentum Kings" Portfolio ---
+    console.log('Applying "Momentum Kings" strategy filters...');
+
+    // Find the 75th percentile for 6-month performance to use as a relative strength threshold
+    const perf6MValues = allStocks.map((s) => s.perf6M).sort((a, b) => a - b);
+    const rsThreshold = perf6MValues[Math.floor(perf6MValues.length * 0.75)];
+
+    const momentumCandidates = allStocks.filter((stock) => {
+      // Minervini Trend Template Filters
+      const isPriceAboveMAs =
+        stock.currentPrice > stock.fiftyDayAverage &&
+        stock.currentPrice > stock.hundredFiftyDayAverage &&
+        stock.currentPrice > stock.twoHundredDayAverage;
+      const is150Above200 =
+        stock.hundredFiftyDayAverage > stock.twoHundredDayAverage;
+      const is50AboveMAs =
+        stock.fiftyDayAverage > stock.hundredFiftyDayAverage &&
+        stock.fiftyDayAverage > stock.twoHundredDayAverage;
+      const isPriceNearHigh =
+        stock.currentPrice >= stock.fiftyTwoWeekHigh * 0.75; // Within 25% of 52-week high
+      const isPriceAboveLow =
+        stock.currentPrice >= stock.fiftyTwoWeekLow * 1.25; // At least 25% above 52-week low
+
+      // Relative Strength Filter
+      const hasRelativeStrength = stock.perf6M >= rsThreshold;
+
+      // Volume Confirmation Filter
+      const hasVolumeInterest =
+        stock.avgVolume50Day > stock.avgVolume200Day * 1.3;
+
+      return (
+        isPriceAboveMAs &&
+        is150Above200 &&
+        is50AboveMAs &&
+        isPriceNearHigh &&
+        isPriceAboveLow &&
+        hasRelativeStrength &&
+        hasVolumeInterest
+      );
+    });
+
+    // Calculate Quality Momentum Score and select top 10
+    const topMomentumStocks = momentumCandidates
+      .map((stock) => ({
+        ...stock,
+        qualityMomentumScore:
+          stock.perf3M * 0.4 + stock.perf6M * 0.4 + stock.perf1Y * 0.2,
+      }))
+      .sort((a, b) => b.qualityMomentumScore - a.qualityMomentumScore)
+      .slice(0, 10); // Select top 10
+
+    if (topMomentumStocks.length > 0) {
+      const portfolioName = `Momentum Kings - ${monthName} ${year}`;
+      await Portfolio.findOneAndUpdate(
+        { name: portfolioName },
+        {
+          name: portfolioName,
+          strategy: "Momentum",
+          stocks: topMomentumStocks.map((s) => ({
+            ticker: s.ticker,
+            priceAtAddition: s.currentPrice,
+          })),
+        },
+        { upsert: true }
+      );
+      console.log(
+        `JOB_SUCCESS: Created/updated "${portfolioName}" with ${topMomentumStocks.length} stocks.`
+      );
+    } else {
+      console.log('JOB_INFO: No stocks passed the "Momentum Kings" filter.');
+    }
+
+    // --- 2. Create "Alpha Titans" Portfolio ---
+    console.log('Applying "Alpha Titans" strategy filters...');
+
+    const alphaCandidates = allStocks.filter((stock) => {
+      // Alpha Performance Filter
+      const hasPositiveAlpha = stock.alpha > 0;
+      // Earnings Growth Filter (Simplified due to API limitations)
+      const hasStrongEPS =
+        stock.epsTrailingTwelveMonths > 0 && stock.trailingPE > 0; // Ensures profitability
+
+      // NOTE: More advanced filters like historical sales/EPS growth and institutional ownership
+      // would require a premium financial data API. This is a simplified version.
+      return hasPositiveAlpha && hasStrongEPS;
+    });
+
+    // Rank by Alpha and select top 10
+    const topAlphaStocks = alphaCandidates
+      .sort((a, b) => b.alpha - a.alpha)
+      .slice(0, 10); // Select top 10
+
+    if (topAlphaStocks.length > 0) {
+      const portfolioName = `Alpha Titans - ${monthName} ${year}`;
+      await Portfolio.findOneAndUpdate(
+        { name: portfolioName },
+        {
+          name: portfolioName,
+          strategy: "Alpha",
+          stocks: topAlphaStocks.map((s) => ({
+            ticker: s.ticker,
+            priceAtAddition: s.currentPrice,
+            alpha: s.alpha,
+          })),
+        },
+        { upsert: true }
+      );
+      console.log(
+        `JOB_SUCCESS: Created/updated "${portfolioName}" with ${topAlphaStocks.length} stocks.`
+      );
+    } else {
+      console.log('JOB_INFO: No stocks passed the "Alpha Titans" filter.');
+    }
+  } catch (error) {
+    console.error(
+      "JOB_ERROR: An error occurred during the expert monthly portfolio creation job.",
+      error
+    );
+  }
 };

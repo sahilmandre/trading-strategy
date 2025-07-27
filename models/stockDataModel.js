@@ -2,56 +2,47 @@
 
 import mongoose from 'mongoose';
 
-const StockDataSchema = new mongoose.Schema(
-  {
-    ticker: {
-      type: String,
-      required: [true, "Stock ticker is required."],
-      unique: true, // Each ticker will have only one entry in this collection
-      uppercase: true,
-    },
-    longName: {
-      type: String, // Store the company's full name
-    },
-    lastRefreshed: {
-      type: Date,
-      default: Date.now,
-    },
-    currentPrice: {
-      type: Number,
-    },
-    volume: {
-      type: Number,
-    },
-    momentumScore: {
-      type: Number,
-      default: 0,
-    },
-    // --- NEW FIELD ---
-    // This will store the calculated alpha value.
-    alpha: {
-      type: Number,
-      default: 0,
-    },
-    // Storing individual performance metrics for potential future use
-    perf1D: { type: Number },
-    perf1W: { type: Number },
-    perf1M: { type: Number },
-    perf3M: { type: Number },
-    perf6M: { type: Number },
-    perf1Y: { type: Number },
-  },
-  {
-    timestamps: true, // Automatically adds createdAt and updatedAt
-  }
-);
+const StockDataSchema = new mongoose.Schema({
+  // Core Info
+  ticker: { type: String, required: true, unique: true, uppercase: true },
+  longName: { type: String },
+  lastRefreshed: { type: Date, default: Date.now },
+  currentPrice: { type: Number },
+  volume: { type: Number },
+  marketCap: { type: Number },
 
-// Create an index on momentumScore to speed up sorting queries.
-StockDataSchema.index({ momentumScore: -1 });
+  // Performance Metrics
+  perf1D: { type: Number },
+  perf1W: { type: Number },
+  perf1M: { type: Number },
+  perf3M: { type: Number },
+  perf6M: { type: Number },
+  perf1Y: { type: Number },
 
-// --- NEW INDEX ---
-// Create an index on alpha to speed up sorting queries for the alpha screener.
+  // Technicals for Minervini Strategy
+  fiftyDayAverage: { type: Number },
+  hundredFiftyDayAverage: { type: Number },
+  twoHundredDayAverage: { type: Number },
+  fiftyTwoWeekLow: { type: Number },
+  fiftyTwoWeekHigh: { type: Number },
+  avgVolume50Day: { type: Number },
+  avgVolume200Day: { type: Number },
+
+  // Fundamentals for CANSLIM Strategy (Simplified)
+  epsTrailingTwelveMonths: { type: Number },
+  trailingPE: { type: Number },
+  
+  // Calculated Strategy Fields
+  alpha: { type: Number, default: 0 },
+  // We are removing the old momentumScore as it will be replaced by the new expert logic.
+
+}, {
+  timestamps: true
+});
+
+// Create indexes for fields we will sort by frequently
 StockDataSchema.index({ alpha: -1 });
+StockDataSchema.index({ perf6M: -1 }); // For Relative Strength filter
 
 const StockData = mongoose.model('StockData', StockDataSchema);
 
