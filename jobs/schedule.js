@@ -67,12 +67,10 @@ export const runMonthlyPortfolioCreation = async () => {
     // --- 1. Create "Momentum Kings" Portfolio ---
     console.log('Applying "Momentum Kings" strategy filters...');
 
-    // Find the 75th percentile for 6-month performance to use as a relative strength threshold
     const perf6MValues = allStocks.map((s) => s.perf6M).sort((a, b) => a - b);
     const rsThreshold = perf6MValues[Math.floor(perf6MValues.length * 0.75)];
 
     const momentumCandidates = allStocks.filter((stock) => {
-      // Minervini Trend Template Filters
       const isPriceAboveMAs =
         stock.currentPrice > stock.fiftyDayAverage &&
         stock.currentPrice > stock.hundredFiftyDayAverage &&
@@ -83,17 +81,12 @@ export const runMonthlyPortfolioCreation = async () => {
         stock.fiftyDayAverage > stock.hundredFiftyDayAverage &&
         stock.fiftyDayAverage > stock.twoHundredDayAverage;
       const isPriceNearHigh =
-        stock.currentPrice >= stock.fiftyTwoWeekHigh * 0.75; // Within 25% of 52-week high
+        stock.currentPrice >= stock.fiftyTwoWeekHigh * 0.75;
       const isPriceAboveLow =
-        stock.currentPrice >= stock.fiftyTwoWeekLow * 1.25; // At least 25% above 52-week low
-
-      // Relative Strength Filter
+        stock.currentPrice >= stock.fiftyTwoWeekLow * 1.25;
       const hasRelativeStrength = stock.perf6M >= rsThreshold;
-
-      // Volume Confirmation Filter
       const hasVolumeInterest =
         stock.avgVolume50Day > stock.avgVolume200Day * 1.3;
-
       return (
         isPriceAboveMAs &&
         is150Above200 &&
@@ -105,7 +98,6 @@ export const runMonthlyPortfolioCreation = async () => {
       );
     });
 
-    // Calculate Quality Momentum Score and select top 10
     const topMomentumStocks = momentumCandidates
       .map((stock) => ({
         ...stock,
@@ -113,7 +105,7 @@ export const runMonthlyPortfolioCreation = async () => {
           stock.perf3M * 0.4 + stock.perf6M * 0.4 + stock.perf1Y * 0.2,
       }))
       .sort((a, b) => b.qualityMomentumScore - a.qualityMomentumScore)
-      .slice(0, 10); // Select top 10
+      .slice(0, 10);
 
     if (topMomentumStocks.length > 0) {
       const portfolioName = `Momentum Kings - ${monthName} ${year}`;
@@ -125,6 +117,7 @@ export const runMonthlyPortfolioCreation = async () => {
           stocks: topMomentumStocks.map((s) => ({
             ticker: s.ticker,
             priceAtAddition: s.currentPrice,
+            momentumScore: parseFloat(s.qualityMomentumScore.toFixed(2)),
           })),
         },
         { upsert: true }
@@ -140,21 +133,15 @@ export const runMonthlyPortfolioCreation = async () => {
     console.log('Applying "Alpha Titans" strategy filters...');
 
     const alphaCandidates = allStocks.filter((stock) => {
-      // Alpha Performance Filter
       const hasPositiveAlpha = stock.alpha > 0;
-      // Earnings Growth Filter (Simplified due to API limitations)
       const hasStrongEPS =
-        stock.epsTrailingTwelveMonths > 0 && stock.trailingPE > 0; // Ensures profitability
-
-      // NOTE: More advanced filters like historical sales/EPS growth and institutional ownership
-      // would require a premium financial data API. This is a simplified version.
+        stock.epsTrailingTwelveMonths > 0 && stock.trailingPE > 0;
       return hasPositiveAlpha && hasStrongEPS;
     });
 
-    // Rank by Alpha and select top 10
     const topAlphaStocks = alphaCandidates
       .sort((a, b) => b.alpha - a.alpha)
-      .slice(0, 10); // Select top 10
+      .slice(0, 10);
 
     if (topAlphaStocks.length > 0) {
       const portfolioName = `Alpha Titans - ${monthName} ${year}`;
@@ -166,7 +153,7 @@ export const runMonthlyPortfolioCreation = async () => {
           stocks: topAlphaStocks.map((s) => ({
             ticker: s.ticker,
             priceAtAddition: s.currentPrice,
-            alpha: s.alpha,
+            alpha: parseFloat(s.alpha),
           })),
         },
         { upsert: true }
