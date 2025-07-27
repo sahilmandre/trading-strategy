@@ -1,30 +1,36 @@
 // File: jobs/schedule.js
 
-import { calculateMomentumForAllStocks } from '../services/analysisService.js';
+// --- Use the new, combined analysis function ---
+import { runFullStockAnalysis } from '../services/analysisService.js';
 import StockData from '../models/stockDataModel.js';
-import Portfolio from '../models/portfolioModel.js'; // Import portfolio model for later use
+import Portfolio from '../models/portfolioModel.js';
 
 /**
- * This job fetches the latest momentum data for all stocks,
+ * This job runs a full analysis (Momentum & Alpha) for all stocks,
  * then updates or creates entries in the StockData collection in MongoDB.
- * This serves as a daily cache of the analysis results.
+ * This serves as a daily cache of all analysis results.
  */
 export const runDailyStockUpdate = async () => {
-  console.log('JOB_STARTED: Running daily stock data update...');
+  console.log('JOB_STARTED: Running daily full stock data update (Momentum & Alpha)...');
   try {
-    const momentumData = await calculateMomentumForAllStocks();
+    // --- Call the updated analysis function ---
+    const analysisData = await runFullStockAnalysis();
 
-    if (!momentumData || momentumData.length === 0) {
-      console.log('JOB_INFO: No momentum data received from analysis service. Skipping update.');
+    if (!analysisData || analysisData.length === 0) {
+      console.log('JOB_INFO: No analysis data received from service. Skipping update.');
       return;
     }
 
-    // Using bulkWrite is much more efficient than updating one by one in a loop
-    const operations = momentumData.map(stock => ({
+    const operations = analysisData.map(stock => ({
       updateOne: {
         filter: { ticker: stock.ticker },
-        update: { $set: stock },
-        upsert: true, // If a stock doesn't exist in the DB, it will be created
+        update: { 
+          $set: {
+            ...stock,
+            lastRefreshed: new Date() // Explicitly set the refresh time
+          } 
+        },
+        upsert: true,
       },
     }));
 

@@ -9,7 +9,12 @@ import { nifty500 } from "./config/nifty500.js";
 
 // --- Route Imports ---
 import stockRoutes from "./routes/stockRoutes.js";
-// We will add portfolioRoutes here later
+
+// --- Job Imports ---
+import {
+  runDailyStockUpdate,
+  runMonthlyPortfolioCreation,
+} from "./jobs/schedule.js";
 
 // --- Basic Setup ---
 dotenv.config();
@@ -30,29 +35,46 @@ if (!MONGO_URI) {
 
 mongoose
   .connect(MONGO_URI)
-  .then(() => console.log("Successfully connected to MongoDB."))
+  .then(() => console.log("✅ Successfully connected to MongoDB."))
   .catch((err) => {
-    console.error("MongoDB connection error:", err);
+    console.error("❌ MongoDB connection error:", err);
     process.exit(1);
   });
 
 // --- API Routes ---
-// All stock-related routes are now handled by the stockRoutes file.
 app.use("/api/stocks", stockRoutes);
-// We will add the portfolio routes here later.
 
-// A simple root route to confirm the server is running.
 app.get("/", (req, res) => {
   res.send("Welcome to the Stock Screener API!");
 });
 
 // --- Scheduled Tasks (Cron Jobs) ---
-cron.schedule("* * * * *", () => {
-  // We will replace this with our actual job logic later.
-  // console.log('Scheduled task running.');
+console.log("🕒 Setting up scheduled jobs...");
+
+// This job updates our stock data cache. Runs every hour at minute 0.
+cron.schedule("0 * * * *", runDailyStockUpdate, {
+  scheduled: true,
+  timezone: "Asia/Kolkata",
 });
 
-// --- Start Server ---
+// This job creates the monthly model portfolios. Runs on the 1st of every month.
+cron.schedule("0 1 1 * *", runMonthlyPortfolioCreation, {
+  scheduled: true,
+  timezone: "Asia/Kolkata",
+});
+
+// --- Start Server & Initial Job Run ---
 app.listen(PORT, () => {
-  console.log(`Server is running on port: ${PORT}`);
+  console.log("================================================");
+  console.log(`🚀 SERVER IS UP AND RUNNING ON PORT: ${PORT}`);
+  console.log("================================================\n");
+
+  // Run the update job once on server start for immediate data.
+  console.log(
+    ">>> TRIGGERING INITIAL DATA ANALYSIS JOB. THIS WILL TAKE SEVERAL MINUTES. <<<"
+  );
+  console.log(
+    '>>> PLEASE WAIT FOR THE "JOB_SUCCESS" MESSAGE IN THE LOGS. <<<\n'
+  );
+  runDailyStockUpdate();
 });

@@ -1,9 +1,7 @@
 // File: controllers/stockController.js
 
 import { fetchQuoteData } from '../services/dataService.js';
-// The analysis service is now only used by the scheduled job, not directly by the controller.
-// import { calculateMomentumForAllStocks } from '../services/analysisService.js';
-import StockData from '../models/stockDataModel.js'; // Import the model to read from the database
+import StockData from "../models/stockDataModel.js";
 
 /**
  * Controller to handle fetching live quote data for a list of tickers.
@@ -20,28 +18,25 @@ export const getQuotes = async (req, res) => {
     });
   }
 
-  const tickerArray = tickers.split(',');
+  const tickerArray = tickers.split(",");
 
   try {
     const quoteData = await fetchQuoteData(tickerArray);
-
     if (!quoteData || quoteData.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Could not fetch data for the provided tickers.',
+        message: "Could not fetch data for the provided tickers.",
       });
     }
-
     res.status(200).json({
       success: true,
       data: quoteData,
     });
-
   } catch (error) {
     console.error(`[stockController] Error in getQuotes: ${error.message}`);
     res.status(500).json({
       success: false,
-      message: 'An internal server error occurred.',
+      message: "An internal server error occurred.",
     });
   }
 };
@@ -52,39 +47,68 @@ export const getQuotes = async (req, res) => {
  * @param {object} res - The Express response object.
  */
 export const getMomentumData = async (req, res) => {
-    console.log("Received request for /api/stocks/momentum - fetching from DB cache.");
-    try {
-        // Fetch the pre-calculated data from the MongoDB collection.
-        // Sort by momentumScore in descending order to get the top performers first.
-        const momentumData = await StockData.find().sort({ momentumScore: -1 });
+  console.log(
+    "Received request for /api/stocks/momentum - fetching from DB cache."
+  );
+  try {
+    const momentumData = await StockData.find().sort({ momentumScore: -1 });
 
-        if (!momentumData || momentumData.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'No stock data found in cache. The daily update job may not have run yet.'
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            count: momentumData.length,
-            data: momentumData,
-        });
-
-    } catch (error) {
-        console.error(`[stockController] Error in getMomentumData: ${error.message}`);
-        res.status(500).json({
-            success: false,
-            message: 'An internal server error occurred while fetching momentum data from cache.',
-        });
+    if (!momentumData || momentumData.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "No stock data found in cache. The daily update job may not have run yet.",
+      });
     }
+    res.status(200).json({
+      success: true,
+      count: momentumData.length,
+      data: momentumData,
+    });
+  } catch (error) {
+    console.error(
+      `[stockController] Error in getMomentumData: ${error.message}`
+    );
+    res.status(500).json({
+      success: false,
+      message:
+        "An internal server error occurred while fetching momentum data from cache.",
+    });
+  }
 };
 
 /**
- * Placeholder controller for fetching alpha data.
+ * Controller for fetching alpha data from the database cache.
  * @param {object} req - The Express request object.
  * @param {object} res - The Express response object.
  */
 export const getAlphaData = async (req, res) => {
-    res.status(200).json({ message: "Alpha analysis endpoint is under construction." });
+  console.log(
+    "Received request for /api/stocks/alpha - fetching from DB cache."
+  );
+  try {
+    // Fetch stocks with positive alpha, sorted from highest to lowest.
+    const alphaData = await StockData.find({ alpha: { $gt: 0 } }).sort({
+      alpha: -1,
+    });
+
+    if (!alphaData || alphaData.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No stocks generating positive alpha were found in the cache.",
+      });
+    }
+    res.status(200).json({
+      success: true,
+      count: alphaData.length,
+      data: alphaData,
+    });
+  } catch (error) {
+    console.error(`[stockController] Error in getAlphaData: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message:
+        "An internal server error occurred while fetching alpha data from cache.",
+    });
+  }
 };
