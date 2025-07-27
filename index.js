@@ -76,4 +76,12 @@ app.listen(PORT, () => {
     '>>> PLEASE WAIT FOR THE "JOB_SUCCESS" MESSAGE IN THE LOGS. <<<\n'
   );
   runDailyStockUpdate();
+
+  // --- ADDED FOR TESTING ---
+  // This will run the portfolio creation job on startup so you can test the endpoint.
+  // In a production environment, you would remove this line.
+  console.log(
+    ">>> TRIGGERING MONTHLY PORTFOLIO CREATION JOB FOR TESTING... <<<"
+  );
+  runMonthlyPortfolioCreation();
 });
