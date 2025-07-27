@@ -4,13 +4,19 @@ import express from 'express';
 import {
   getQuotes,
   getMomentumData,
-  getAlphaData
+  getAlphaData,
+  searchStocks // <-- Import the new search function
 } from '../controllers/stockController.js';
 
 // Initialize the Express Router
 const router = express.Router();
 
 // --- Define API Routes ---
+
+// @route   GET /api/stocks/search
+// @desc    Search for stocks by ticker or name
+// @access  Public
+router.get('/search', searchStocks); // <-- Add the new search route
 
 // @route   GET /api/stocks/quotes
 // @desc    Get live quote data for a list of tickers

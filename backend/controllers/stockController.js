@@ -4,10 +4,48 @@ import { fetchQuoteData } from '../services/dataService.js';
 import StockData from "../models/stockDataModel.js";
 
 /**
- * Controller to handle fetching live quote data for a list of tickers.
+ * Searches for stocks based on a query string.
+ * Matches against the ticker or the company's long name.
  * @param {object} req - The Express request object.
  * @param {object} res - The Express response object.
  */
+export const searchStocks = async (req, res) => {
+  const { query } = req.query;
+
+  if (!query || query.length < 2) {
+    // Return empty array if query is too short to avoid excessive results
+    return res.status(200).json({ success: true, data: [] });
+  }
+
+  try {
+    // Use a regular expression for a case-insensitive search ('i' flag)
+    const searchRegex = new RegExp(query, "i");
+
+    // Search in the StockData cache for matches in either the ticker or the longName
+    const results = await StockData.find({
+      $or: [
+        { ticker: { $regex: searchRegex } },
+        { longName: { $regex: searchRegex } },
+      ],
+    })
+      .limit(10) // Limit to 10 results for performance
+      .select("ticker longName"); // Only return the fields we need
+
+    res.status(200).json({
+      success: true,
+      data: results,
+    });
+  } catch (error) {
+    console.error(`[stockController] Error in searchStocks: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: "An internal server error occurred during stock search.",
+    });
+  }
+};
+
+// --- Existing Functions ---
+
 export const getQuotes = async (req, res) => {
   const { tickers } = req.query;
 
@@ -41,11 +79,6 @@ export const getQuotes = async (req, res) => {
   }
 };
 
-/**
- * Controller for fetching momentum data from the database cache.
- * @param {object} req - The Express request object.
- * @param {object} res - The Express response object.
- */
 export const getMomentumData = async (req, res) => {
   console.log(
     "Received request for /api/stocks/momentum - fetching from DB cache."
@@ -77,17 +110,11 @@ export const getMomentumData = async (req, res) => {
   }
 };
 
-/**
- * Controller for fetching alpha data from the database cache.
- * @param {object} req - The Express request object.
- * @param {object} res - The Express response object.
- */
 export const getAlphaData = async (req, res) => {
   console.log(
     "Received request for /api/stocks/alpha - fetching from DB cache."
   );
   try {
-    // Fetch stocks with positive alpha, sorted from highest to lowest.
     const alphaData = await StockData.find({ alpha: { $gt: 0 } }).sort({
       alpha: -1,
     });
