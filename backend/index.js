@@ -5,11 +5,11 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import cron from "node-cron";
-import { nifty500 } from "./config/nifty500.js";
 
 // --- Route Imports ---
 import stockRoutes from "./routes/stockRoutes.js";
-import portfolioRoutes from "./routes/portfolioRoutes.js"; // <-- Import portfolio routes
+import portfolioRoutes from "./routes/portfolioRoutes.js";
+import rebalanceRoutes from "./routes/rebalanceRoutes.js"; // <-- Import rebalance routes
 
 // --- Job Imports ---
 import {
@@ -44,7 +44,8 @@ mongoose
 
 // --- API Routes ---
 app.use("/api/stocks", stockRoutes);
-app.use("/api/portfolios", portfolioRoutes); // <-- Use portfolio routes
+app.use("/api/portfolios", portfolioRoutes);
+app.use("/api/rebalance", rebalanceRoutes); // <-- Use rebalance routes
 
 app.get("/", (req, res) => {
   res.send("Welcome to the Stock Screener API!");
@@ -77,9 +78,6 @@ app.listen(PORT, () => {
   );
   runDailyStockUpdate();
 
-  // --- ADDED FOR TESTING ---
-  // This will run the portfolio creation job on startup so you can test the endpoint.
-  // In a production environment, you would remove this line.
   console.log(
     ">>> TRIGGERING MONTHLY PORTFOLIO CREATION JOB FOR TESTING... <<<"
   );
