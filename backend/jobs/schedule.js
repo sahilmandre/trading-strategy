@@ -4,7 +4,7 @@ import { runFullStockAnalysis } from '../services/analysisService.js';
 import StockData from '../models/stockDataModel.js';
 import Portfolio from '../models/portfolioModel.js';
 import { fetchQuoteData } from "../services/dataService.js";
-import yahooFinance from "yahoo-finance2"; // Import yahooFinance for historical fetch
+import yahooFinance from "yahoo-finance2";
 
 /**
  * This job runs a full analysis (Momentum & Alpha) for all stocks,
@@ -38,7 +38,8 @@ export const runDailyStockUpdate = async () => {
 };
 
 /**
- * [FIXED] This job runs daily to update the performance of all historical portfolios.
+ * [UPDATED] This job runs daily to update the performance of all historical portfolios
+ * and logs a new entry in their performance history.
  */
 export const runDailyPerformanceUpdate = async () => {
   console.log("JOB_STARTED: Running daily portfolio performance update...");
@@ -96,6 +97,29 @@ export const runDailyPerformanceUpdate = async () => {
       portfolio.peakReturnPercent = newPeakReturn;
       portfolio.maxDrawdownPercent = newMaxDrawdown;
       portfolio.lastPerformanceUpdate = new Date();
+
+      // --- NEW LOGIC: Add today's performance to the history array ---
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Normalize date to remove time component
+
+      // Check if an entry for today already exists to prevent duplicates
+      const existingEntryIndex = portfolio.performanceHistory.findIndex(
+        (entry) => new Date(entry.date).toDateString() === today.toDateString()
+      );
+
+      const newHistoryEntry = {
+        date: today,
+        portfolioReturn: newCurrentReturnPercent,
+      };
+
+      if (existingEntryIndex > -1) {
+        // If an entry for today exists, update it
+        portfolio.performanceHistory[existingEntryIndex] = newHistoryEntry;
+      } else {
+        // Otherwise, add a new entry
+        portfolio.performanceHistory.push(newHistoryEntry);
+      }
+
       await portfolio.save();
     }
     console.log(
@@ -110,7 +134,7 @@ export const runDailyPerformanceUpdate = async () => {
 };
 
 /**
- * [FIXED] This job runs once a month to generate the model portfolios based on expert strategies.
+ * This job runs once a month to generate the model portfolios based on expert strategies.
  */
 export const runMonthlyPortfolioCreation = async () => {
   console.log("JOB_STARTED: Running EXPERT monthly portfolio creation...");
@@ -127,22 +151,18 @@ export const runMonthlyPortfolioCreation = async () => {
       { $set: { isActive: false } }
     );
 
-    // --- Helper function to get previous day's close for testing ---
     const getEntryPrice = async (ticker) => {
       try {
         const history = await yahooFinance.historical(ticker, {
           period1: new Date(new Date().setDate(date.getDate() - 5)),
         });
-        if (history.length > 1) {
-          return history[history.length - 2].close; // Yesterday's close
-        }
-        return allStocks.find((s) => s.ticker === ticker).currentPrice; // Fallback to current price
+        if (history.length > 1) return history[history.length - 2].close;
+        return allStocks.find((s) => s.ticker === ticker).currentPrice;
       } catch {
-        return allStocks.find((s) => s.ticker === ticker).currentPrice; // Fallback
+        return allStocks.find((s) => s.ticker === ticker).currentPrice;
       }
     };
 
-    // --- 1. Create "Momentum Kings" Portfolio ---
     const perf6MValues = allStocks.map((s) => s.perf6M).sort((a, b) => a - b);
     const rsThreshold = perf6MValues[Math.floor(perf6MValues.length * 0.75)];
     const momentumCandidates = allStocks.filter(
@@ -186,13 +206,13 @@ export const runMonthlyPortfolioCreation = async () => {
           currentValue: initialValue,
           isActive: true,
           generationDate: date,
+          performanceHistory: [{ date: date, portfolioReturn: 0 }],
         },
         { upsert: true, new: true }
       );
       console.log(`JOB_SUCCESS: Created/updated "${portfolioName}".`);
     }
 
-    // --- 2. Create "Alpha Titans" Portfolio ---
     const alphaCandidates = allStocks.filter(
       (stock) =>
         stock.alpha > 0 &&
@@ -223,6 +243,7 @@ export const runMonthlyPortfolioCreation = async () => {
           currentValue: initialValue,
           isActive: true,
           generationDate: date,
+          performanceHistory: [{ date: date, portfolioReturn: 0 }],
         },
         { upsert: true, new: true }
       );

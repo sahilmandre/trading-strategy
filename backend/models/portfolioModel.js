@@ -2,13 +2,21 @@
 
 import mongoose from 'mongoose';
 
-// This sub-schema defines the structure for each stock within a portfolio.
 const StockInPortfolioSchema = new mongoose.Schema(
   {
     ticker: { type: String, required: true },
     priceAtAddition: { type: Number },
     momentumScore: { type: Number },
     alpha: { type: Number },
+  },
+  { _id: false }
+);
+
+// --- NEW SUB-SCHEMA for daily performance snapshots ---
+const PerformanceEntrySchema = new mongoose.Schema(
+  {
+    date: { type: Date, required: true },
+    portfolioReturn: { type: Number, required: true },
   },
   { _id: false }
 );
@@ -20,35 +28,19 @@ const PortfolioSchema = new mongoose.Schema(
     stocks: [StockInPortfolioSchema],
     generationDate: { type: Date, default: Date.now },
 
-    // --- NEW PERFORMANCE TRACKING FIELDS ---
-    isActive: {
-      type: Boolean,
-      default: true, // A portfolio is active for the month it was generated in.
-    },
-    lastPerformanceUpdate: {
-      type: Date,
-    },
-    initialValue: {
-      type: Number, // The total value of the portfolio at creation
-    },
-    currentValue: {
-      type: Number, // The current total value of the portfolio
-    },
-    currentReturnPercent: {
-      type: Number,
-      default: 0,
-    },
-    peakReturnPercent: {
-      type: Number,
-      default: 0, // The highest return percentage this portfolio has ever reached
-    },
-    maxDrawdownPercent: {
-      type: Number,
-      default: 0, // The largest drop from a peak, stored as a negative number
-    },
+    isActive: { type: Boolean, default: true },
+    lastPerformanceUpdate: { type: Date },
+    initialValue: { type: Number },
+    currentValue: { type: Number },
+    currentReturnPercent: { type: Number, default: 0 },
+    peakReturnPercent: { type: Number, default: 0 },
+    maxDrawdownPercent: { type: Number, default: 0 },
+
+    // --- NEW FIELD to store historical data for charts ---
+    performanceHistory: [PerformanceEntrySchema],
   },
   {
-    timestamps: true, // Automatically adds createdAt and updatedAt fields
+    timestamps: true,
   }
 );
 

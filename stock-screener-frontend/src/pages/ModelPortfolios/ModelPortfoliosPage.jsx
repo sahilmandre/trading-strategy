@@ -12,7 +12,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 
 const PortfolioCard = ({ portfolio, onSelect, isSelected, liveReturn }) => {
     if (!portfolio) return null;
-    // --- FIX: Use the liveReturn if available, otherwise use the DB value ---
     const displayReturn = typeof liveReturn === 'number' ? liveReturn : portfolio.currentReturnPercent;
     const returnColor = displayReturn >= 0 ? 'text-green-400' : 'text-red-400';
     const selectedClass = isSelected ? 'ring-2 ring-teal-500' : 'ring-1 ring-gray-700';
@@ -28,6 +27,32 @@ const PortfolioCard = ({ portfolio, onSelect, isSelected, liveReturn }) => {
         </div>
     );
 };
+
+// --- DEFINITIVE FIX: A robust Custom Tooltip component ---
+const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+        const portfolioData = payload.find(p => p.dataKey === 'portfolioReturn');
+        const benchmarkData = payload.find(p => p.dataKey === 'benchmarkReturn');
+
+        return (
+            <div className="p-3 bg-gray-800 border border-gray-600 rounded-lg shadow-lg text-sm">
+                <p className="label text-gray-300 font-bold">{`${label}`}</p>
+                {portfolioData && typeof portfolioData.value === 'number' && (
+                    <p style={{ color: portfolioData.color }}>
+                        {`${portfolioData.name} : ${portfolioData.value.toFixed(2)}%`}
+                    </p>
+                )}
+                {benchmarkData && typeof benchmarkData.value === 'number' && (
+                    <p style={{ color: benchmarkData.color }}>
+                        {`${benchmarkData.name} : ${benchmarkData.value.toFixed(2)}%`}
+                    </p>
+                )}
+            </div>
+        );
+    }
+    return null;
+};
+
 
 export default function ModelPortfoliosPage() {
     const { data: portfolios, isLoading, isError, error } = useModelPortfolios();
@@ -64,7 +89,6 @@ export default function ModelPortfoliosPage() {
         }, {});
     }, [livePriceData]);
 
-    // --- FIX: Calculate the live portfolio return on the frontend ---
     const livePortfolioReturn = useMemo(() => {
         if (!selectedPortfolio || Object.keys(currentPrices).length === 0) {
             return selectedPortfolio?.currentReturnPercent || 0;
@@ -74,7 +98,6 @@ export default function ModelPortfoliosPage() {
             const entryPrice = stock.priceAtAddition;
             return currentPrice && entryPrice ? ((currentPrice - entryPrice) / entryPrice) * 100 : 0;
         });
-        // Average the returns of all stocks in the portfolio
         return individualReturns.reduce((sum, ret) => sum + ret, 0) / individualReturns.length;
     }, [selectedPortfolio, currentPrices]);
 
@@ -86,16 +109,37 @@ export default function ModelPortfoliosPage() {
     });
 
     const chartData = useMemo(() => {
-        const displayReturn = livePortfolioReturn; // Use the live calculated return for the chart
-        if (!selectedPortfolio) return [];
+        if (!selectedPortfolio?.performanceHistory) return [];
+
+        // --- DEFINITIVE FIX: Rewritten data processing logic ---
+        const portfolioHistoryMap = new Map(
+            selectedPortfolio.performanceHistory.map(entry => [
+                new Date(entry.date).toLocaleDateString('en-GB'),
+                parseFloat(entry.portfolioReturn.toFixed(2))
+            ])
+        );
+
         if (!benchmarkData || benchmarkData.length === 0) {
-            return [{ date: new Date(selectedPortfolio.generationDate).toLocaleDateString(), portfolioReturn: 0 }, { date: new Date().toLocaleDateString(), portfolioReturn: displayReturn }];
+            return Array.from(portfolioHistoryMap, ([date, portfolioReturn]) => ({ date, portfolioReturn }));
         }
+
         const firstBenchmarkValue = benchmarkData[0]?.close;
-        if (!firstBenchmarkValue) return [];
-        const normalizedBenchmark = benchmarkData.map(day => ({ date: new Date(day.date).toLocaleDateString(), benchmarkReturn: ((day.close - firstBenchmarkValue) / firstBenchmarkValue) * 100 }));
-        return normalizedBenchmark.map(day => ({ ...day, portfolioReturn: displayReturn }));
-    }, [selectedPortfolio, benchmarkData, livePortfolioReturn]);
+        if (!firstBenchmarkValue) return Array.from(portfolioHistoryMap, ([date, portfolioReturn]) => ({ date, portfolioReturn }));
+
+        const benchmarkHistoryMap = new Map(benchmarkData.map(day => [
+            new Date(day.date).toLocaleDateString('en-GB'),
+            parseFloat((((day.close - firstBenchmarkValue) / firstBenchmarkValue) * 100).toFixed(2))
+        ]));
+
+        const allDates = new Set([...portfolioHistoryMap.keys(), ...benchmarkHistoryMap.keys()]);
+        const sortedDates = Array.from(allDates).sort((a, b) => new Date(a.split('/').reverse().join('-')) - new Date(b.split('/').reverse().join('-')));
+
+        return sortedDates.map(date => ({
+            date,
+            portfolioReturn: portfolioHistoryMap.get(date),
+            benchmarkReturn: benchmarkHistoryMap.get(date),
+        }));
+    }, [selectedPortfolio, benchmarkData]);
 
     if (isLoading) return <Loader />;
     if (isError) return <ErrorMessage message={error.message} />;
@@ -125,7 +169,17 @@ export default function ModelPortfoliosPage() {
                     </div>
                     <div className="h-96 w-full mb-6">
                         {isLoadingBenchmark ? <Loader /> : (
-                            <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="#4A5568" /><XAxis dataKey="date" stroke="#A0AEC0" /><YAxis stroke="#A0AEC0" unit="%" /><Tooltip contentStyle={{ backgroundColor: '#2D3748', border: '1px solid #4A5568' }} /><Legend /><Line type="monotone" dataKey="portfolioReturn" name="Portfolio Return" stroke="#38B2AC" strokeWidth={2} dot={false} /><Line type="monotone" dataKey="benchmarkReturn" name="Benchmark Return" stroke="#A0AEC0" strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={chartData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
+                                    <XAxis dataKey="date" stroke="#A0AEC0" />
+                                    <YAxis stroke="#A0AEC0" unit="%" domain={['auto', 'auto']} />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Legend />
+                                    <Line type="monotone" dataKey="portfolioReturn" name="Portfolio Return" stroke="#38B2AC" strokeWidth={2} dot={false} connectNulls />
+                                    <Line type="monotone" dataKey="benchmarkReturn" name="Benchmark Return" stroke="#A0AEC0" strokeWidth={2} dot={false} connectNulls />
+                                </LineChart>
+                            </ResponsiveContainer>
                         )}
                     </div>
                     <h3 className="text-xl font-bold text-white mb-2">Holdings</h3>
