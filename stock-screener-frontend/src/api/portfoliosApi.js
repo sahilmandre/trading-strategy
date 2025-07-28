@@ -2,26 +2,37 @@
 
 import axios from 'axios';
 
-// Get the base URL from the environment variables
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// Create a central Axios instance
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
 });
 
-/**
- * Fetches the latest model portfolios (Momentum & Alpha) from the backend.
- * @returns {Promise<Object>} A promise that resolves to an object containing the momentum and alpha portfolios.
- */
 export const getModelPortfolios = async () => {
   try {
-    const { data } = await apiClient.get('/portfolios');
-    // The backend response has a 'data' property containing an object with 'momentum' and 'alpha' keys
+    const { data } = await apiClient.get("/portfolios");
     return data.data;
   } catch (error) {
     console.error("Error fetching model portfolios:", error);
-    // Re-throw the error so React Query can handle it
-    throw new Error('Failed to fetch model portfolios.');
+    throw new Error("Failed to fetch model portfolios.");
+  }
+};
+
+/**
+ * [FIXED] Fetches historical data for a given benchmark index ticker using a query parameter.
+ * @param {string} ticker - The ticker for the benchmark index.
+ * @returns {Promise<Array>} A promise that resolves to an array of historical data points.
+ */
+export const getBenchmarkData = async (ticker) => {
+  if (!ticker) return [];
+  try {
+    // --- FIX: Use query parameter for the API call ---
+    const { data } = await apiClient.get(
+      `/portfolios/benchmark?ticker=${ticker}`
+    );
+    return data.data;
+  } catch (error) {
+    console.error(`Error fetching benchmark data for ${ticker}:`, error);
+    throw new Error(`Failed to fetch benchmark data for ${ticker}.`);
   }
 };

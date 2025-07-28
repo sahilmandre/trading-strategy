@@ -1,18 +1,16 @@
 // File: routes/portfolioRoutes.js
 
 import express from 'express';
-import { getLatestPortfolios } from '../controllers/portfolioController.js';
+import { getAllPortfolios } from "../controllers/portfolioController.js";
+import { getBenchmarkData } from "../controllers/benchmarkController.js";
 
-// Initialize the Express Router
 const router = express.Router();
 
-// --- Define API Routes ---
-
 // @route   GET /api/portfolios
-// @desc    Get the latest generated model portfolios for each strategy
-// @access  Public
-router.get('/', getLatestPortfolios);
+router.get("/", getAllPortfolios);
 
+// --- FIX: Changed route to use a query parameter ---
+// @route   GET /api/portfolios/benchmark?ticker=...
+router.get("/benchmark", getBenchmarkData);
 
-// Export the router so it can be used in our main index.js file
 export default router;
