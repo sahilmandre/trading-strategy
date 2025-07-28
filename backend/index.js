@@ -10,12 +10,13 @@ import cron from "node-cron";
 import stockRoutes from "./routes/stockRoutes.js";
 import portfolioRoutes from "./routes/portfolioRoutes.js";
 import rebalanceRoutes from "./routes/rebalanceRoutes.js";
+import backtestRoutes from "./routes/backtestRoutes.js"; // <-- Import backtest routes
 
 // --- Job Imports ---
 import {
   runDailyStockUpdate,
   runMonthlyPortfolioCreation,
-  runDailyPerformanceUpdate, // <-- Import the new job
+  runDailyPerformanceUpdate,
 } from "./jobs/schedule.js";
 
 // --- Basic Setup ---
@@ -47,6 +48,7 @@ mongoose
 app.use("/api/stocks", stockRoutes);
 app.use("/api/portfolios", portfolioRoutes);
 app.use("/api/rebalance", rebalanceRoutes);
+app.use("/api/backtest", backtestRoutes); // <-- Use backtest routes
 
 app.get("/", (req, res) => {
   res.send("Welcome to the Stock Screener API!");
@@ -55,19 +57,16 @@ app.get("/", (req, res) => {
 // --- Scheduled Tasks (Cron Jobs) ---
 console.log("🕒 Setting up scheduled jobs...");
 
-// Runs every hour to update the main stock data cache
 cron.schedule("0 * * * *", runDailyStockUpdate, {
   scheduled: true,
   timezone: "Asia/Kolkata",
 });
 
-// [NEW] Runs once a day at 2 AM to update historical portfolio performance
 cron.schedule("0 2 * * *", runDailyPerformanceUpdate, {
   scheduled: true,
   timezone: "Asia/Kolkata",
 });
 
-// Runs on the 1st of every month to create new model portfolios
 cron.schedule("0 1 1 * *", runMonthlyPortfolioCreation, {
   scheduled: true,
   timezone: "Asia/Kolkata",
@@ -89,7 +88,6 @@ app.listen(PORT, () => {
   );
   runMonthlyPortfolioCreation();
 
-  // [NEW] Trigger performance update on startup for immediate data
   console.log(
     ">>> TRIGGERING PORTFOLIO PERFORMANCE UPDATE JOB FOR TESTING... <<<"
   );
