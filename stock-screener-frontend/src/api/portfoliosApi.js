@@ -10,11 +10,11 @@ const apiClient = axios.create({
 
 export const getModelPortfolios = async () => {
   try {
-    const { data } = await apiClient.get("/portfolios");
+    const { data } = await apiClient.get('/portfolios');
     return data.data;
   } catch (error) {
     console.error("Error fetching model portfolios:", error);
-    throw new Error("Failed to fetch model portfolios.");
+    throw new Error('Failed to fetch model portfolios.');
   }
 };
 

@@ -4,6 +4,7 @@ import { runFullStockAnalysis } from '../services/analysisService.js';
 import StockData from '../models/stockDataModel.js';
 import Portfolio from '../models/portfolioModel.js';
 import { fetchQuoteData } from "../services/dataService.js";
+import yahooFinance from "yahoo-finance2"; // Import yahooFinance for historical fetch
 
 /**
  * This job runs a full analysis (Momentum & Alpha) for all stocks,
@@ -37,7 +38,7 @@ export const runDailyStockUpdate = async () => {
 };
 
 /**
- * [NEW] This job runs daily to update the performance of all historical portfolios.
+ * [FIXED] This job runs daily to update the performance of all historical portfolios.
  */
 export const runDailyPerformanceUpdate = async () => {
   console.log("JOB_STARTED: Running daily portfolio performance update...");
@@ -48,10 +49,11 @@ export const runDailyPerformanceUpdate = async () => {
       return;
     }
 
-    // Get all unique tickers from all portfolios to fetch prices in one go
     const allTickers = [
       ...new Set(allPortfolios.flatMap((p) => p.stocks.map((s) => s.ticker))),
     ];
+    if (allTickers.length === 0) return;
+
     const currentPriceData = await fetchQuoteData(allTickers);
     const priceMap = new Map(
       currentPriceData.map((s) => [s.symbol, s.regularMarketPrice])
@@ -59,17 +61,17 @@ export const runDailyPerformanceUpdate = async () => {
 
     for (const portfolio of allPortfolios) {
       let newCurrentValue = 0;
+      const weightPerStock = portfolio.initialValue / portfolio.stocks.length;
+
       for (const stock of portfolio.stocks) {
         const currentPrice = priceMap.get(stock.ticker);
         const priceAtAddition = stock.priceAtAddition;
 
         if (currentPrice && priceAtAddition > 0) {
           const returnRatio = currentPrice / priceAtAddition;
-          // Each stock conceptually starts with a value of 100
-          newCurrentValue += 100 * returnRatio;
+          newCurrentValue += weightPerStock * returnRatio;
         } else {
-          // If price is unavailable, assume its value hasn't changed
-          newCurrentValue += 100;
+          newCurrentValue += weightPerStock;
         }
       }
 
@@ -80,11 +82,10 @@ export const runDailyPerformanceUpdate = async () => {
         portfolio.peakReturnPercent || 0,
         newCurrentReturnPercent
       );
+
+      const peakValue = portfolio.initialValue * (1 + newPeakReturn / 100);
       const drawdown =
-        (newCurrentValue /
-          (portfolio.initialValue * (1 + newPeakReturn / 100)) -
-          1) *
-        100;
+        peakValue > 0 ? (newCurrentValue / peakValue - 1) * 100 : 0;
       const newMaxDrawdown = Math.min(
         portfolio.maxDrawdownPercent || 0,
         drawdown
@@ -109,18 +110,13 @@ export const runDailyPerformanceUpdate = async () => {
 };
 
 /**
- * This job runs once a month to generate the model portfolios based on expert strategies.
+ * [FIXED] This job runs once a month to generate the model portfolios based on expert strategies.
  */
 export const runMonthlyPortfolioCreation = async () => {
   console.log("JOB_STARTED: Running EXPERT monthly portfolio creation...");
   try {
     const allStocks = await StockData.find().lean();
-    if (allStocks.length === 0) {
-      console.log(
-        "JOB_INFO: No stock data in cache. Cannot create portfolios."
-      );
-      return;
-    }
+    if (allStocks.length === 0) return;
 
     const date = new Date();
     const monthName = date.toLocaleString("default", { month: "long" });
@@ -130,38 +126,37 @@ export const runMonthlyPortfolioCreation = async () => {
       { isActive: true },
       { $set: { isActive: false } }
     );
-    console.log("JOB_INFO: Deactivated all previously active portfolios.");
+
+    // --- Helper function to get previous day's close for testing ---
+    const getEntryPrice = async (ticker) => {
+      try {
+        const history = await yahooFinance.historical(ticker, {
+          period1: new Date(new Date().setDate(date.getDate() - 5)),
+        });
+        if (history.length > 1) {
+          return history[history.length - 2].close; // Yesterday's close
+        }
+        return allStocks.find((s) => s.ticker === ticker).currentPrice; // Fallback to current price
+      } catch {
+        return allStocks.find((s) => s.ticker === ticker).currentPrice; // Fallback
+      }
+    };
 
     // --- 1. Create "Momentum Kings" Portfolio ---
     const perf6MValues = allStocks.map((s) => s.perf6M).sort((a, b) => a - b);
     const rsThreshold = perf6MValues[Math.floor(perf6MValues.length * 0.75)];
-    const momentumCandidates = allStocks.filter((stock) => {
-      const isPriceAboveMAs =
+    const momentumCandidates = allStocks.filter(
+      (stock) =>
         stock.currentPrice > stock.fiftyDayAverage &&
         stock.currentPrice > stock.hundredFiftyDayAverage &&
-        stock.currentPrice > stock.twoHundredDayAverage;
-      const is150Above200 =
-        stock.hundredFiftyDayAverage > stock.twoHundredDayAverage;
-      const is50AboveMAs =
+        stock.currentPrice > stock.twoHundredDayAverage &&
+        stock.hundredFiftyDayAverage > stock.twoHundredDayAverage &&
         stock.fiftyDayAverage > stock.hundredFiftyDayAverage &&
-        stock.fiftyDayAverage > stock.twoHundredDayAverage;
-      const isPriceNearHigh =
-        stock.currentPrice >= stock.fiftyTwoWeekHigh * 0.75;
-      const isPriceAboveLow =
-        stock.currentPrice >= stock.fiftyTwoWeekLow * 1.25;
-      const hasRelativeStrength = stock.perf6M >= rsThreshold;
-      const hasVolumeInterest =
-        stock.avgVolume50Day > stock.avgVolume200Day * 1.3;
-      return (
-        isPriceAboveMAs &&
-        is150Above200 &&
-        is50AboveMAs &&
-        isPriceNearHigh &&
-        isPriceAboveLow &&
-        hasRelativeStrength &&
-        hasVolumeInterest
-      );
-    });
+        stock.currentPrice >= stock.fiftyTwoWeekHigh * 0.75 &&
+        stock.currentPrice >= stock.fiftyTwoWeekLow * 1.25 &&
+        stock.perf6M >= rsThreshold &&
+        stock.avgVolume50Day > stock.avgVolume200Day * 1.3
+    );
     const topMomentumStocks = momentumCandidates
       .map((stock) => ({
         ...stock,
@@ -173,19 +168,28 @@ export const runMonthlyPortfolioCreation = async () => {
 
     if (topMomentumStocks.length > 0) {
       const portfolioName = `Momentum Kings - ${monthName} ${year}`;
-      const initialValue = 100 * topMomentumStocks.length; // Each stock starts with a value of 100
-      await Portfolio.create({
-        name: portfolioName,
-        strategy: "Momentum",
-        stocks: topMomentumStocks.map((s) => ({
+      const initialValue = 100 * topMomentumStocks.length;
+      const stocksWithEntryPrice = await Promise.all(
+        topMomentumStocks.map(async (s) => ({
           ticker: s.ticker,
-          priceAtAddition: s.currentPrice,
+          priceAtAddition: await getEntryPrice(s.ticker),
           momentumScore: parseFloat(s.qualityMomentumScore.toFixed(2)),
-        })),
-        initialValue: initialValue,
-        currentValue: initialValue,
-      });
-      console.log(`JOB_SUCCESS: Created "${portfolioName}".`);
+        }))
+      );
+      await Portfolio.findOneAndUpdate(
+        { name: portfolioName },
+        {
+          name: portfolioName,
+          strategy: "Momentum",
+          stocks: stocksWithEntryPrice,
+          initialValue,
+          currentValue: initialValue,
+          isActive: true,
+          generationDate: date,
+        },
+        { upsert: true, new: true }
+      );
+      console.log(`JOB_SUCCESS: Created/updated "${portfolioName}".`);
     }
 
     // --- 2. Create "Alpha Titans" Portfolio ---
@@ -201,19 +205,28 @@ export const runMonthlyPortfolioCreation = async () => {
 
     if (topAlphaStocks.length > 0) {
       const portfolioName = `Alpha Titans - ${monthName} ${year}`;
-      const initialValue = 100 * topAlphaStocks.length; // Each stock starts with a value of 100
-      await Portfolio.create({
-        name: portfolioName,
-        strategy: "Alpha",
-        stocks: topAlphaStocks.map((s) => ({
+      const initialValue = 100 * topAlphaStocks.length;
+      const stocksWithEntryPrice = await Promise.all(
+        topAlphaStocks.map(async (s) => ({
           ticker: s.ticker,
-          priceAtAddition: s.currentPrice,
+          priceAtAddition: await getEntryPrice(s.ticker),
           alpha: parseFloat(s.alpha),
-        })),
-        initialValue: initialValue,
-        currentValue: initialValue,
-      });
-      console.log(`JOB_SUCCESS: Created "${portfolioName}".`);
+        }))
+      );
+      await Portfolio.findOneAndUpdate(
+        { name: portfolioName },
+        {
+          name: portfolioName,
+          strategy: "Alpha",
+          stocks: stocksWithEntryPrice,
+          initialValue,
+          currentValue: initialValue,
+          isActive: true,
+          generationDate: date,
+        },
+        { upsert: true, new: true }
+      );
+      console.log(`JOB_SUCCESS: Created/updated "${portfolioName}".`);
     }
   } catch (error) {
     console.error(
