@@ -1,6 +1,7 @@
 // File: src/App.jsx
 
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast'; // Import the Toaster component
 
 // Import Layout and Page Components
 import AlphaPage from './pages/Alpha/AlphaPage';
@@ -26,12 +27,22 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
-  // By wrapping the RouterProvider, the RebalanceContext state
-  // will be available to all pages and persist during navigation.
   return (
-
-    <RouterProvider router={router} />
-
+    <>
+      {/* The Toaster component renders notifications anywhere in the app.
+        We can customize its position and appearance here.
+      */}
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: '#2d3748', // gray-800
+            color: '#e2e8f0',     // gray-200
+          },
+        }}
+      />
+      <RouterProvider router={router} />
+    </>
   );
 }
 

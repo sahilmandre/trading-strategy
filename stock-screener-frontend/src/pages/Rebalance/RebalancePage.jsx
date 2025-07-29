@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useMutation } from '@tanstack/react-query';
+import toast from 'react-hot-toast'; // Import toast
 import { getQuotesForTickers } from '../../api/stocksApi';
 import PageHeader from '../../components/shared/PageHeader';
 import Loader from '../../components/shared/Loader';
@@ -31,15 +32,22 @@ export default function RebalancePage() {
     }
   }, [status, dispatch]);
 
-  // --- Debounced save effect ---
+  // --- Debounced save effect with toast notifications ---
   useEffect(() => {
-    // Only save if the initial load is complete
     if (status === 'succeeded') {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
       timeoutRef.current = setTimeout(() => {
-        dispatch(saveRebalanceStateThunk({ totalAmount, stocks }));
+        // The dispatch action returns a promise that we can pass to toast.promise
+        const savePromise = dispatch(saveRebalanceStateThunk({ totalAmount, stocks }));
+
+        toast.promise(savePromise, {
+          loading: 'Auto-saving portfolio...',
+          success: 'Portfolio saved successfully!',
+          error: 'Error: Could not save portfolio.',
+        });
+
       }, 1500); // Debounce for 1.5 seconds
     }
     return () => {
@@ -51,9 +59,10 @@ export default function RebalancePage() {
 
 
   // --- Data Fetching for Live Prices ---
-  const { mutate: fetchPrices, isPending: isFetchingPrices } = useMutation({
+  const { mutateAsync: fetchPrices, isPending: isFetchingPrices } = useMutation({
     mutationFn: getQuotesForTickers,
     onSuccess: (data) => {
+      // Update the stock prices in the Redux store
       data.forEach(quote => {
         const stockToUpdate = stocks.find(s => s.ticker.toUpperCase() === quote.symbol.toUpperCase());
         if (stockToUpdate) {
@@ -61,13 +70,23 @@ export default function RebalancePage() {
         }
       });
     },
-    onError: (error) => alert(`Error fetching prices: ${error.message}`),
+    // No onError needed here, toast.promise will handle it
   });
 
+  // --- Handle Fetch Prices with toast notifications ---
   const handleFetchPrices = () => {
     const tickers = stocks.map(s => s.ticker).filter(Boolean);
     if (tickers.length > 0) {
-      fetchPrices(tickers);
+      // Use mutateAsync to get a promise for toast.promise
+      const fetchPromise = fetchPrices(tickers);
+
+      toast.promise(fetchPromise, {
+        loading: 'Fetching live prices...',
+        success: 'Prices updated!',
+        error: (err) => `Error: ${err.message}`, // Display the actual error message
+      });
+    } else {
+      toast.error("Please add at least one stock ticker.");
     }
   };
 
