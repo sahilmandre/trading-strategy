@@ -47,17 +47,14 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function ModelPortfoliosPage() {
     const { data: portfolios, isLoading, isError, error } = useModelPortfolios();
     const [selectedPortfolio, setSelectedPortfolio] = useState(null);
-    const [selectedBenchmark, setSelectedBenchmark] = useState('^NSEI'); // Default to Nifty 50
+    const [selectedBenchmark, setSelectedBenchmark] = useState('NIFTY_50'); // Default to standard name
     const [backtestPeriod, setBacktestPeriod] = useState('');
     const [activeBacktest, setActiveBacktest] = useState(null);
 
-    // --- DEFINITIVE FIX: Using the correct and expanded list of Yahoo Finance tickers ---
     const benchmarkOptions = [
-        { label: 'Nifty 50', value: '^NSEI' },
-        { label: 'Nifty 500', value: '^CRSLDX' },
-        { label: 'Nifty Alpha 50', value: 'NIFTYALPHA50.NS' },
-        { label: 'Nifty200 Momentum 30', value: 'NIFTY200_MOMENTUM_30.NS' },
-        { label: 'Nifty200 Alpha 30', value: 'NIFTY200_ALPHA_30.NS' }
+        { label: 'Nifty 50', value: 'NIFTY_50' },
+        { label: 'Nifty 500', value: 'NIFTY_500' },
+        { label: 'Nifty 200', value: 'NIFTY_200' },
     ];
 
     useEffect(() => {
@@ -231,9 +228,7 @@ export default function ModelPortfoliosPage() {
                 </div>
                 <div>
                     <h3 className="text-xl font-semibold text-white mb-3">Alpha Titans History</h3>
-                    <div className="space-y-4">
-                        {historicalAlpha.map(p => <PortfolioCard key={p._id} portfolio={p} onSelect={setSelectedPortfolio} isSelected={selectedPortfolio?._id === p._id} liveReturn={selectedPortfolio?._id === p._id ? livePortfolioReturn : undefined} />)}
-                    </div>
+                    <div className="space-y-4">{historicalAlpha.map(p => <PortfolioCard key={p._id} portfolio={p} onSelect={setSelectedPortfolio} isSelected={selectedPortfolio?._id === p._id} liveReturn={selectedPortfolio?._id === p._id ? livePortfolioReturn : undefined} />)}</div>
                 </div>
             </div>
         </div>

@@ -1,0 +1,87 @@
+```
+└── 📁backend
+    └── 📁config
+        ├── nifty500.js
+    └── 📁controllers
+        ├── backtestController.js
+        ├── benchmarkController.js
+        ├── portfolioController.js
+        ├── rebalanceController.js
+        ├── stockController.js
+    └── 📁jobs
+        ├── schedule.js
+    └── 📁models
+        ├── portfolioModel.js
+        ├── rebalanceStateModel.js
+        ├── stockDataModel.js
+    └── 📁routes
+        ├── backtestRoutes.js
+        ├── portfolioRoutes.js
+        ├── rebalanceRoutes.js
+        ├── stockRoutes.js
+    └── 📁services
+        ├── analysisService.js
+        ├── dataService.js
+    ├── .env
+    ├── .gitIgnore
+    ├── folderStructure.md
+    ├── index.js
+    ├── package-lock.json
+    ├── package.json
+    ├── Portfolio-selection.md
+    └── Requirements.md
+```
+
+
+```
+└── 📁stock-screener-frontend
+    └── 📁public
+        ├── vite.svg
+    └── 📁src
+        └── 📁api
+            ├── backtestApi.js
+            ├── portfoliosApi.js
+            ├── rebalanceApi.js
+            ├── stocksApi.js
+        └── 📁assets
+            ├── react.svg
+        └── 📁components
+            └── 📁shared
+                ├── ErrorMessage.jsx
+                ├── Loader.jsx
+                ├── PageHeader.jsx
+        └── 📁hooks
+            ├── useAlphaStocks.js
+            ├── useDebounce.js
+            ├── useModelPortfolios.js
+            ├── useMomentumStocks.js
+        └── 📁pages
+            └── 📁Alpha
+                ├── AlphaPage.jsx
+            └── 📁Home
+                ├── HomePage.jsx
+            └── 📁ModelPortfolios
+                ├── ModelPortfoliosPage.jsx
+            └── 📁Momentum
+                ├── MomentumPage.jsx
+            └── 📁Rebalance
+                └── 📁components
+                    ├── TickerSearchInput.jsx
+                ├── RebalancePage.jsx
+            ├── Layout.jsx
+        └── 📁redux
+            ├── rebalanceSlice.js
+            ├── store.js
+        ├── App.css
+        ├── App.jsx
+        ├── index.css
+        ├── main.jsx
+    ├── .env
+    ├── .gitignore
+    ├── eslint.config.js
+    ├── index.html
+    ├── package-lock.json
+    ├── package.json
+    ├── README.md
+    └── vite.config.js
+```
