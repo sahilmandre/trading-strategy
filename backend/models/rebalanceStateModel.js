@@ -1,35 +1,40 @@
 // File: models/rebalanceStateModel.js
 
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-// This sub-schema defines the structure for each stock row in the rebalance table.
-const RebalanceStockSchema = new mongoose.Schema({
-  id: { type: Number, required: true },
-  ticker: { type: String },
-  weight: { type: Number, default: 0 },
-  price: { type: Number, default: 0 },
-  shares: { type: Number, default: 0 },
-  amount: { type: Number, default: 0 },
-}, { _id: false });
-
-// This schema will store the entire state of the rebalance tool.
-// We will only have one document in this collection to represent the user's single table.
-const RebalanceStateSchema = new mongoose.Schema({
-  // A unique identifier to ensure we only ever have one document.
-  singletonId: {
-    type: String,
-    default: 'global',
-    unique: true,
+const RebalanceStockSchema = new mongoose.Schema(
+  {
+    id: { type: Number, required: true },
+    ticker: { type: String },
+    weight: { type: Number, default: 0 },
+    price: { type: Number, default: 0 },
+    shares: { type: Number, default: 0 },
+    amount: { type: Number, default: 0 },
+    unusedCash: { type: Number, default: 0 },
   },
-  totalAmount: {
-    type: Number,
-    default: 100000,
-  },
-  stocks: [RebalanceStockSchema],
-}, {
-  timestamps: true // Adds createdAt and updatedAt fields
-});
+  { _id: false }
+);
 
-const RebalanceState = mongoose.model('RebalanceState', RebalanceStateSchema);
+const RebalanceStateSchema = new mongoose.Schema(
+  {
+    // Link this state to a specific user
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: "User", // Creates a reference to the User model
+      unique: true, // Each user can only have one rebalance state document
+    },
+    totalAmount: {
+      type: Number,
+      default: 100000,
+    },
+    stocks: [RebalanceStockSchema],
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const RebalanceState = mongoose.model("RebalanceState", RebalanceStateSchema);
 
 export default RebalanceState;

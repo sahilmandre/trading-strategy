@@ -3,7 +3,8 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { logout } from '../redux/authSlice'; // <-- CORRECTED PATH
+import { logout } from '../redux/authSlice';
+import { clearRebalanceState } from '../redux/rebalanceSlice'; // <-- Import clear action
 import toast from 'react-hot-toast';
 
 export default function Layout() {
@@ -12,12 +13,13 @@ export default function Layout() {
   const { userInfo } = useSelector((state) => state.auth);
 
   const activeLinkStyle = {
-    color: '#14b8a6', // A teal color for the active link
+    color: '#14b8a6',
     textDecoration: 'underline',
   };
 
   const handleLogout = () => {
     dispatch(logout());
+    dispatch(clearRebalanceState()); // <-- Clear the rebalance state on logout
     toast.success('Logged out successfully!');
     navigate('/login');
   };
@@ -34,7 +36,6 @@ export default function Layout() {
             </div>
             
             <div className="hidden md:flex items-center space-x-4">
-              {/* Main Navigation Links */}
               <NavLink to="/momentum" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium" style={({ isActive }) => (isActive ? activeLinkStyle : undefined)}>Momentum</NavLink>
               <NavLink to="/alpha" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium" style={({ isActive }) => (isActive ? activeLinkStyle : undefined)}>Alpha</NavLink>
               <NavLink to="/portfolios" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium" style={({ isActive }) => (isActive ? activeLinkStyle : undefined)}>Portfolios</NavLink>
@@ -42,7 +43,6 @@ export default function Layout() {
 
               <div className="w-px h-6 bg-gray-600"></div>
 
-              {/* Conditional Auth Links */}
               {userInfo ? (
                 <>
                   <span className="text-gray-400 text-sm">Welcome, {userInfo.email}</span>

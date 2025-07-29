@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useMutation } from '@tanstack/react-query';
-import toast from 'react-hot-toast'; // Import toast
+import toast from 'react-hot-toast';
 import { getQuotesForTickers } from '../../api/stocksApi';
 import PageHeader from '../../components/shared/PageHeader';
 import Loader from '../../components/shared/Loader';
@@ -22,47 +22,48 @@ export default function RebalancePage() {
   const dispatch = useDispatch();
   const timeoutRef = useRef(null);
 
-  // --- Select state from the Redux store ---
   const { totalAmount, stocks, status } = useSelector((state) => state.rebalance);
+  const { userInfo } = useSelector((state) => state.auth); // Get user info
 
-  // --- Fetch initial state when the component mounts ---
+  // Fetch initial state when the component mounts OR when the user logs in
   useEffect(() => {
-    if (status === 'idle') {
-      dispatch(fetchRebalanceState());
+    if (userInfo) {
+    // We check for 'idle' status to prevent refetching if data is already loaded
+      if (status === 'idle') {
+        dispatch(fetchRebalanceState());
+      }
     }
-  }, [status, dispatch]);
+  }, [status, dispatch, userInfo]);
 
-  // --- Debounced save effect with toast notifications ---
+  // Debounced save effect
   useEffect(() => {
-    if (status === 'succeeded') {
+    if (status === 'succeeded' && userInfo) { // Only save if logged in
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
       timeoutRef.current = setTimeout(() => {
-        // The dispatch action returns a promise that we can pass to toast.promise
         const savePromise = dispatch(saveRebalanceStateThunk({ totalAmount, stocks }));
 
         toast.promise(savePromise, {
           loading: 'Auto-saving portfolio...',
-          success: 'Portfolio saved successfully!',
-          error: 'Error: Could not save portfolio.',
+          success: 'Portfolio saved!',
+          error: 'Error: Could not save.',
         });
 
-      }, 1500); // Debounce for 1.5 seconds
+      }, 1500);
     }
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [totalAmount, stocks, status, dispatch]);
+  }, [totalAmount, stocks, status, dispatch, userInfo]);
 
 
-  // --- Data Fetching for Live Prices ---
+  // Data Fetching for Live Prices
   const { mutateAsync: fetchPrices, isPending: isFetchingPrices } = useMutation({
     mutationFn: getQuotesForTickers,
     onSuccess: (data) => {
-      // Update the stock prices in the Redux store
       data.forEach(quote => {
         const stockToUpdate = stocks.find(s => s.ticker.toUpperCase() === quote.symbol.toUpperCase());
         if (stockToUpdate) {
@@ -70,41 +71,40 @@ export default function RebalancePage() {
         }
       });
     },
-    // No onError needed here, toast.promise will handle it
   });
 
-  // --- Handle Fetch Prices with toast notifications ---
   const handleFetchPrices = () => {
     const tickers = stocks.map(s => s.ticker).filter(Boolean);
     if (tickers.length > 0) {
-      // Use mutateAsync to get a promise for toast.promise
       const fetchPromise = fetchPrices(tickers);
 
       toast.promise(fetchPromise, {
         loading: 'Fetching live prices...',
         success: 'Prices updated!',
-        error: (err) => `Error: ${err.message}`, // Display the actual error message
+        error: (err) => `Error: ${err.message}`,
       });
     } else {
       toast.error("Please add at least one stock ticker.");
     }
   };
 
-  // --- Intelligent Calculation Effect ---
+  // Intelligent Calculation Effect
   useEffect(() => {
-    stocks.forEach(stock => {
-      const idealAmount = (totalAmount * (stock.weight / 100));
-      const sharesToBuy = stock.price > 0 ? Math.floor(idealAmount / stock.price) : 0;
-      const actualAmount = sharesToBuy * stock.price;
-      const unusedCash = idealAmount - actualAmount;
+    if (stocks && stocks.length > 0) {
+      stocks.forEach(stock => {
+        const idealAmount = (totalAmount * (stock.weight / 100));
+        const sharesToBuy = stock.price > 0 ? Math.floor(idealAmount / stock.price) : 0;
+        const actualAmount = sharesToBuy * stock.price;
+        const unusedCash = idealAmount - actualAmount;
 
-      if (stock.amount !== actualAmount || stock.shares !== sharesToBuy) {
-        dispatch(updateStock({
-          id: stock.id,
-          updates: { amount: actualAmount, shares: sharesToBuy, unusedCash: unusedCash },
-        }));
-      }
-    });
+          if (stock.amount !== actualAmount || stock.shares !== sharesToBuy) {
+            dispatch(updateStock({
+              id: stock.id,
+              updates: { amount: actualAmount, shares: sharesToBuy, unusedCash: unusedCash },
+            }));
+          }
+        });
+    }
   }, [totalAmount, stocks, dispatch]);
 
   const totals = useMemo(() => {
@@ -114,7 +114,7 @@ export default function RebalancePage() {
     return { totalWeight, totalActualInvestment, totalUnusedCash };
   }, [stocks]);
 
-  if (status === 'loading' || status === 'idle') {
+  if (status === 'loading' || (userInfo && status === 'idle')) {
     return <Loader />;
   }
 

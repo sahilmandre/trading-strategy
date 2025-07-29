@@ -5,22 +5,15 @@ import {
   getRebalanceState,
   saveRebalanceState,
 } from '../controllers/rebalanceController.js';
+import { protect } from "../middleware/authMiddleware.js"; // Import the middleware
 
-// Initialize the Express Router
 const router = express.Router();
 
-// --- Define API Routes ---
+// Apply the 'protect' middleware to both routes.
+// Now, a user must be logged in to access these endpoints.
+router
+  .route("/")
+  .get(protect, getRebalanceState)
+  .post(protect, saveRebalanceState);
 
-// @route   GET /api/rebalance
-// @desc    Get the saved state of the rebalance tool
-// @access  Public
-router.get('/', getRebalanceState);
-
-// @route   POST /api/rebalance
-// @desc    Save the state of the rebalance tool
-// @access  Public
-router.post('/', saveRebalanceState);
-
-
-// Export the router so it can be used in our main index.js file
 export default router;
