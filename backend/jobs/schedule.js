@@ -1,15 +1,11 @@
 // File: jobs/schedule.js
 
-import { runFullStockAnalysis } from '../services/analysisService.js';
-import StockData from '../models/stockDataModel.js';
-import Portfolio from '../models/portfolioModel.js';
-import { fetchQuoteData } from "../services/dataService.js";
+import { runFullStockAnalysis } from "../services/analysisService.js";
+import StockData from "../models/stockDataModel.js";
+import Portfolio from "../models/portfolioModel.js";
+import { fetchQuoteData as fetchQuotesForMultipleTickers } from "../services/dataService.js";
 import yahooFinance from "yahoo-finance2";
 
-/**
- * This job runs a full analysis (Momentum & Alpha) for all stocks,
- * then updates or creates entries in the StockData collection in MongoDB.
- */
 export const runDailyStockUpdate = async () => {
   console.log("JOB_STARTED: Running daily EXPERT stock data update...");
   try {
@@ -37,10 +33,6 @@ export const runDailyStockUpdate = async () => {
   }
 };
 
-/**
- * [UPDATED] This job runs daily to update the performance of all historical portfolios
- * and logs a new entry in their performance history.
- */
 export const runDailyPerformanceUpdate = async () => {
   console.log("JOB_STARTED: Running daily portfolio performance update...");
   try {
@@ -55,7 +47,7 @@ export const runDailyPerformanceUpdate = async () => {
     ];
     if (allTickers.length === 0) return;
 
-    const currentPriceData = await fetchQuoteData(allTickers);
+    const currentPriceData = await fetchQuotesForMultipleTickers(allTickers);
     const priceMap = new Map(
       currentPriceData.map((s) => [s.symbol, s.regularMarketPrice])
     );
@@ -98,25 +90,19 @@ export const runDailyPerformanceUpdate = async () => {
       portfolio.maxDrawdownPercent = newMaxDrawdown;
       portfolio.lastPerformanceUpdate = new Date();
 
-      // --- NEW LOGIC: Add today's performance to the history array ---
       const today = new Date();
-      today.setHours(0, 0, 0, 0); // Normalize date to remove time component
-
-      // Check if an entry for today already exists to prevent duplicates
+      today.setHours(0, 0, 0, 0);
       const existingEntryIndex = portfolio.performanceHistory.findIndex(
         (entry) => new Date(entry.date).toDateString() === today.toDateString()
       );
-
       const newHistoryEntry = {
         date: today,
         portfolioReturn: newCurrentReturnPercent,
       };
 
       if (existingEntryIndex > -1) {
-        // If an entry for today exists, update it
         portfolio.performanceHistory[existingEntryIndex] = newHistoryEntry;
       } else {
-        // Otherwise, add a new entry
         portfolio.performanceHistory.push(newHistoryEntry);
       }
 
@@ -133,9 +119,6 @@ export const runDailyPerformanceUpdate = async () => {
   }
 };
 
-/**
- * This job runs once a month to generate the model portfolios based on expert strategies.
- */
 export const runMonthlyPortfolioCreation = async () => {
   console.log("JOB_STARTED: Running EXPERT monthly portfolio creation...");
   try {
@@ -165,25 +148,20 @@ export const runMonthlyPortfolioCreation = async () => {
 
     const perf6MValues = allStocks.map((s) => s.perf6M).sort((a, b) => a - b);
     const rsThreshold = perf6MValues[Math.floor(perf6MValues.length * 0.75)];
+
+    // --- DEFINITIVE FIX: Use the momentumScore from the database for filtering ---
     const momentumCandidates = allStocks.filter(
       (stock) =>
+        stock.momentumScore > 0 &&
         stock.currentPrice > stock.fiftyDayAverage &&
-        stock.currentPrice > stock.hundredFiftyDayAverage &&
         stock.currentPrice > stock.twoHundredDayAverage &&
         stock.hundredFiftyDayAverage > stock.twoHundredDayAverage &&
-        stock.fiftyDayAverage > stock.hundredFiftyDayAverage &&
         stock.currentPrice >= stock.fiftyTwoWeekHigh * 0.75 &&
-        stock.currentPrice >= stock.fiftyTwoWeekLow * 1.25 &&
-        stock.perf6M >= rsThreshold &&
-        stock.avgVolume50Day > stock.avgVolume200Day * 1.3
+        stock.perf6M >= rsThreshold
     );
+
     const topMomentumStocks = momentumCandidates
-      .map((stock) => ({
-        ...stock,
-        qualityMomentumScore:
-          stock.perf3M * 0.4 + stock.perf6M * 0.4 + stock.perf1Y * 0.2,
-      }))
-      .sort((a, b) => b.qualityMomentumScore - a.qualityMomentumScore)
+      .sort((a, b) => b.momentumScore - a.momentumScore)
       .slice(0, 10);
 
     if (topMomentumStocks.length > 0) {
@@ -193,7 +171,7 @@ export const runMonthlyPortfolioCreation = async () => {
         topMomentumStocks.map(async (s) => ({
           ticker: s.ticker,
           priceAtAddition: await getEntryPrice(s.ticker),
-          momentumScore: parseFloat(s.qualityMomentumScore.toFixed(2)),
+          momentumScore: s.momentumScore,
         }))
       );
       await Portfolio.findOneAndUpdate(
@@ -230,7 +208,7 @@ export const runMonthlyPortfolioCreation = async () => {
         topAlphaStocks.map(async (s) => ({
           ticker: s.ticker,
           priceAtAddition: await getEntryPrice(s.ticker),
-          alpha: parseFloat(s.alpha),
+          alpha: s.alpha,
         }))
       );
       await Portfolio.findOneAndUpdate(
