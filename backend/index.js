@@ -10,7 +10,8 @@ import cron from "node-cron";
 import stockRoutes from "./routes/stockRoutes.js";
 import portfolioRoutes from "./routes/portfolioRoutes.js";
 import rebalanceRoutes from "./routes/rebalanceRoutes.js";
-import backtestRoutes from "./routes/backtestRoutes.js"; // <-- Import backtest routes
+import backtestRoutes from "./routes/backtestRoutes.js";
+import userRoutes from "./routes/userRoutes.js"; // <-- Import user routes
 
 // --- Job Imports ---
 import {
@@ -48,7 +49,8 @@ mongoose
 app.use("/api/stocks", stockRoutes);
 app.use("/api/portfolios", portfolioRoutes);
 app.use("/api/rebalance", rebalanceRoutes);
-app.use("/api/backtest", backtestRoutes); // <-- Use backtest routes
+app.use("/api/backtest", backtestRoutes);
+app.use("/api/users", userRoutes); // <-- Use user routes
 
 app.get("/", (req, res) => {
   res.send("Welcome to the Stock Screener API!");
@@ -81,15 +83,15 @@ app.listen(PORT, () => {
   console.log(
     ">>> TRIGGERING INITIAL DATA ANALYSIS JOB. THIS WILL TAKE SEVERAL MINUTES. <<<"
   );
-  runDailyStockUpdate();
+  // runDailyStockUpdate(); // Comment out for faster dev startup
 
   console.log(
     ">>> TRIGGERING MONTHLY PORTFOLIO CREATION JOB FOR TESTING... <<<"
   );
-  runMonthlyPortfolioCreation();
+  // runMonthlyPortfolioCreation(); // Comment out for faster dev startup
 
   console.log(
     ">>> TRIGGERING PORTFOLIO PERFORMANCE UPDATE JOB FOR TESTING... <<<"
   );
-  runDailyPerformanceUpdate();
+  // runDailyPerformanceUpdate(); // Comment out for faster dev startup
 });
