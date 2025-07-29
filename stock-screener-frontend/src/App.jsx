@@ -13,6 +13,7 @@ import RebalancePage from './pages/Rebalance/RebalancePage';
 import LoginPage from './pages/Login/LoginPage';
 import RegisterPage from './pages/Register/RegisterPage';
 import PrivateRoute from './components/shared/PrivateRoute'; // <-- Import PrivateRoute
+import StockDetailPage from './pages/StockDetail/StockDetailPage';
 
 // Define the application routes
 const router = createBrowserRouter([
@@ -38,6 +39,7 @@ const router = createBrowserRouter([
           { path: 'alpha', element: <AlphaPage /> },
           { path: 'portfolios', element: <ModelPortfoliosPage /> },
           { path: 'rebalance', element: <RebalancePage /> },
+          { path: 'stocks/:ticker', element: <StockDetailPage /> },
         ],
       },
     ],

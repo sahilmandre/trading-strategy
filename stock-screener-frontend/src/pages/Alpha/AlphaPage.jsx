@@ -1,12 +1,12 @@
 // File: src/pages/Alpha/AlphaPage.jsx
 
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom'; // <-- Import Link
 import { useAlphaStocks } from '../../hooks/useAlphaStocks';
 import Loader from '../../components/shared/Loader';
 import ErrorMessage from '../../components/shared/ErrorMessage';
 import PageHeader from '../../components/shared/PageHeader';
 
-// A helper component for the sortable table headers
 const SortableHeader = ({ children, onClick, sortKey, currentSortKey, sortOrder }) => {
     return (
         <th scope="col" className="px-4 py-3.5 text-left text-sm font-semibold text-white cursor-pointer" onClick={onClick}>
@@ -73,11 +73,15 @@ export default function AlphaPage() {
                     </thead>
                     <tbody className="divide-y divide-gray-700">
                         {sortedStocks.map((stock) => {
-                            // Since Alpha = Stock Return - Market Return, we can derive Market Return
                             const marketReturn = stock.perf1Y - stock.alpha;
                             return (
                                 <tr key={stock.ticker} className="hover:bg-gray-700/50">
-                                    <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-teal-400">{stock.ticker}</td>
+                                    <td className="whitespace-nowrap px-4 py-4 text-sm font-medium">
+                                        {/* Make the ticker a clickable link */}
+                                        <Link to={`/stocks/${stock.ticker}`} className="text-teal-400 hover:underline">
+                                            {stock.ticker}
+                                        </Link>
+                                    </td>
                                     <td className="whitespace-nowrap px-4 py-4 text-sm text-gray-300">₹{stock.currentPrice?.toFixed(2)}</td>
                                     <td className="whitespace-nowrap px-4 py-4 text-sm font-bold text-green-400">{stock.alpha}%</td>
                                     <td className={`whitespace-nowrap px-4 py-4 text-sm ${stock.perf1Y > 0 ? 'text-green-400' : 'text-red-400'}`}>{stock.perf1Y}%</td>

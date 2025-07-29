@@ -1,12 +1,12 @@
 // File: src/pages/Momentum/MomentumPage.jsx
 
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom'; // <-- Import Link
 import { useMomentumStocks } from '../../hooks/useMomentumStocks';
 import Loader from '../../components/shared/Loader';
 import ErrorMessage from '../../components/shared/ErrorMessage';
 import PageHeader from '../../components/shared/PageHeader';
 
-// A helper component for the sortable table headers
 const SortableHeader = ({ children, onClick, sortKey, currentSortKey, sortOrder }) => {
     const isSorted = sortKey === currentSortKey;
     return (
@@ -78,7 +78,12 @@ export default function MomentumPage() {
                     <tbody className="divide-y divide-gray-700">
                         {sortedStocks.map((stock) => (
                             <tr key={stock.ticker} className="hover:bg-gray-700/50">
-                                <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-teal-400">{stock.ticker}</td>
+                                <td className="whitespace-nowrap px-4 py-4 text-sm font-medium">
+                                    {/* Make the ticker a clickable link */}
+                                    <Link to={`/stocks/${stock.ticker}`} className="text-teal-400 hover:underline">
+                                        {stock.ticker}
+                                    </Link>
+                                </td>
                                 <td className="whitespace-nowrap px-4 py-4 text-sm text-gray-300">₹{stock.currentPrice?.toFixed(2)}</td>
                                 <td className="whitespace-nowrap px-4 py-4 text-sm font-bold text-white">{stock.momentumScore}</td>
                                 <td className={`whitespace-nowrap px-4 py-4 text-sm ${stock.perf1D > 0 ? 'text-green-400' : 'text-red-400'}`}>{stock.perf1D}%</td>

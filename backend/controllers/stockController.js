@@ -4,6 +4,41 @@ import { fetchQuoteData } from '../services/dataService.js';
 import StockData from "../models/stockDataModel.js";
 
 /**
+ * Fetches the detailed data for a single stock from the cache.
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ */
+export const getStockDetails = async (req, res) => {
+  try {
+    // The ticker is passed as a URL parameter (e.g., /api/stocks/RELIANCE.NS)
+    const { ticker } = req.params;
+
+    // Find one document in the StockData collection that matches the ticker.
+    // The ticker in the database is uppercase, so we convert the param to uppercase.
+    const stock = await StockData.findOne({ ticker: ticker.toUpperCase() });
+
+    if (!stock) {
+      return res.status(404).json({
+        success: false,
+        message: `Stock with ticker ${ticker} not found in the database cache.`,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: stock,
+    });
+  } catch (error) {
+    console.error(`[stockController] Error in getStockDetails: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: "An internal server error occurred while fetching stock details.",
+    });
+  }
+};
+
+
+/**
  * Searches for stocks based on a query string.
  * Matches against the ticker or the company's long name.
  * @param {object} req - The Express request object.

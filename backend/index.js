@@ -1,23 +1,23 @@
 // File: index.js
 
-import express from "express";
-import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+import express from "express";
+import mongoose from "mongoose";
 import cron from "node-cron";
 
 // --- Route Imports ---
-import stockRoutes from "./routes/stockRoutes.js";
+import backtestRoutes from "./routes/backtestRoutes.js";
 import portfolioRoutes from "./routes/portfolioRoutes.js";
 import rebalanceRoutes from "./routes/rebalanceRoutes.js";
-import backtestRoutes from "./routes/backtestRoutes.js";
+import stockRoutes from "./routes/stockRoutes.js";
 import userRoutes from "./routes/userRoutes.js"; // <-- Import user routes
 
 // --- Job Imports ---
 import {
+  runDailyPerformanceUpdate,
   runDailyStockUpdate,
   runMonthlyPortfolioCreation,
-  runDailyPerformanceUpdate,
 } from "./jobs/schedule.js";
 
 // --- Basic Setup ---
@@ -51,6 +51,7 @@ app.use("/api/portfolios", portfolioRoutes);
 app.use("/api/rebalance", rebalanceRoutes);
 app.use("/api/backtest", backtestRoutes);
 app.use("/api/users", userRoutes); // <-- Use user routes
+
 
 app.get("/", (req, res) => {
   res.send("Welcome to the Stock Screener API!");
