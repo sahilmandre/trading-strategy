@@ -32,6 +32,7 @@ export const runFullStockAnalysis = async () => {
 
   for (let i = 0; i < nifty500.length; i++) {
     const ticker = nifty500[i];
+    console.log(`[Analysis] Fetching data for ${ticker} (${i + 1}/${nifty500.length})`);
     try {
       const [historicalData, quoteData] = await Promise.all([
         yahooFinance.historical(ticker, {

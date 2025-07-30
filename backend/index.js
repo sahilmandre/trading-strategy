@@ -1,23 +1,24 @@
 // File: index.js
 
-import cors from "cors";
-import dotenv from "dotenv";
 import express from "express";
 import mongoose from "mongoose";
+import cors from "cors";
+import dotenv from "dotenv";
 import cron from "node-cron";
 
 // --- Route Imports ---
-import backtestRoutes from "./routes/backtestRoutes.js";
+import stockRoutes from "./routes/stockRoutes.js";
 import portfolioRoutes from "./routes/portfolioRoutes.js";
 import rebalanceRoutes from "./routes/rebalanceRoutes.js";
-import stockRoutes from "./routes/stockRoutes.js";
-import userRoutes from "./routes/userRoutes.js"; // <-- Import user routes
+import backtestRoutes from "./routes/backtestRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 
 // --- Job Imports ---
 import {
-  runDailyPerformanceUpdate,
   runDailyStockUpdate,
   runMonthlyPortfolioCreation,
+  runDailyPerformanceUpdate,
+  runIntradayStockUpdate, // <-- Import the new job
 } from "./jobs/schedule.js";
 
 // --- Basic Setup ---
@@ -31,12 +32,6 @@ app.use(express.json());
 
 // --- MongoDB Connection ---
 const MONGO_URI = process.env.MONGO_URI;
-
-if (!MONGO_URI) {
-  console.error("FATAL ERROR: MONGO_URI is not defined in the .env file.");
-  process.exit(1);
-}
-
 mongoose
   .connect(MONGO_URI)
   .then(() => console.log("✅ Successfully connected to MongoDB."))
@@ -50,8 +45,7 @@ app.use("/api/stocks", stockRoutes);
 app.use("/api/portfolios", portfolioRoutes);
 app.use("/api/rebalance", rebalanceRoutes);
 app.use("/api/backtest", backtestRoutes);
-app.use("/api/users", userRoutes); // <-- Use user routes
-
+app.use("/api/users", userRoutes);
 
 app.get("/", (req, res) => {
   res.send("Welcome to the Stock Screener API!");
@@ -60,39 +54,52 @@ app.get("/", (req, res) => {
 // --- Scheduled Tasks (Cron Jobs) ---
 console.log("🕒 Setting up scheduled jobs...");
 
-cron.schedule("0 * * * *", runDailyStockUpdate, {
+// Read schedules from environment variables with defaults
+const intradayUpdateSchedule =
+  process.env.INTRADAY_UPDATE_SCHEDULE || "*/15 * * * *";
+const dailyStockUpdateSchedule =
+  process.env.DAILY_STOCK_UPDATE_SCHEDULE || "0 1 * * *";
+const dailyPerformanceUpdateSchedule =
+  process.env.DAILY_PERFORMANCE_UPDATE_SCHEDULE || "0 2 * * *";
+const monthlyPortfolioCreationSchedule =
+  process.env.MONTHLY_PORTFOLIO_CREATION_SCHEDULE || "0 3 1 * *";
+
+// NEW: Intraday update job
+cron.schedule(intradayUpdateSchedule, runIntradayStockUpdate, {
   scheduled: true,
   timezone: "Asia/Kolkata",
 });
+console.log(
+  `[JOB SCHEDULED] Intraday Stock Update at: ${intradayUpdateSchedule}`
+);
 
-cron.schedule("0 2 * * *", runDailyPerformanceUpdate, {
+cron.schedule(dailyStockUpdateSchedule, runDailyStockUpdate, {
   scheduled: true,
   timezone: "Asia/Kolkata",
 });
+console.log(
+  `[JOB SCHEDULED] Daily Stock Update at: ${dailyStockUpdateSchedule}`
+);
 
-cron.schedule("0 1 1 * *", runMonthlyPortfolioCreation, {
+cron.schedule(dailyPerformanceUpdateSchedule, runDailyPerformanceUpdate, {
   scheduled: true,
   timezone: "Asia/Kolkata",
 });
+console.log(
+  `[JOB SCHEDULED] Daily Performance Update at: ${dailyPerformanceUpdateSchedule}`
+);
 
-// --- Start Server & Initial Job Run ---
+cron.schedule(monthlyPortfolioCreationSchedule, runMonthlyPortfolioCreation, {
+  scheduled: true,
+  timezone: "Asia/Kolkata",
+});
+console.log(
+  `[JOB SCHEDULED] Monthly Portfolio Creation at: ${monthlyPortfolioCreationSchedule}`
+);
+
+// --- Start Server ---
 app.listen(PORT, () => {
   console.log("================================================");
   console.log(`🚀 SERVER IS UP AND RUNNING ON PORT: ${PORT}`);
   console.log("================================================\n");
-
-  console.log(
-    ">>> TRIGGERING INITIAL DATA ANALYSIS JOB. THIS WILL TAKE SEVERAL MINUTES. <<<"
-  );
-  // runDailyStockUpdate(); // Comment out for faster dev startup
-
-  console.log(
-    ">>> TRIGGERING MONTHLY PORTFOLIO CREATION JOB FOR TESTING... <<<"
-  );
-  // runMonthlyPortfolioCreation(); // Comment out for faster dev startup
-
-  console.log(
-    ">>> TRIGGERING PORTFOLIO PERFORMANCE UPDATE JOB FOR TESTING... <<<"
-  );
-  // runDailyPerformanceUpdate(); // Comment out for faster dev startup
 });

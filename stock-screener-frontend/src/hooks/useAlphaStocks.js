@@ -5,18 +5,13 @@ import { getAlphaStocks } from '../api/stocksApi';
 
 /**
  * Custom hook to fetch the alpha stocks data.
- * It encapsulates the data fetching logic, caching, and state management.
- *
- * @returns {object} An object containing the query result:
- * - data: The array of alpha-generating stocks.
- * - isLoading: A boolean indicating if the data is currently being fetched.
- * - isError: A boolean indicating if an error occurred.
- * - error: The error object if an error occurred.
+ * The backend now handles all live price updates and recalculations.
  */
 export const useAlphaStocks = () => {
   return useQuery({
-    queryKey: ['alphaStocks'], // A unique key for this query.
-    queryFn: getAlphaStocks,   // The API function to call.
-    staleTime: 1000 * 60 * 5,  // Data is considered fresh for 5 minutes.
+    queryKey: ['alphaStocks'], // A single, unique key
+    queryFn: getAlphaStocks,   // The API function to call
+    refetchInterval: 1000 * 60 * 15, // Refetch every 15 minutes
+    staleTime: 1000 * 60 * 5,  // Data is considered fresh for 5 minutes
   });
 };
