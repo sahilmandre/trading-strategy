@@ -52,7 +52,6 @@ export const runIntradayStockUpdate = async () => {
         const livePrice = quote.regularMarketPrice;
         const yesterdayClose = quote.regularMarketPreviousClose;
 
-        // --- FIX: Provide default 0 for any potentially missing performance data ---
         const oldPerf1D = stock.perf1D || 0;
         const oldPerf1W = stock.perf1W || 0;
         const oldPerf1M = stock.perf1M || 0;
@@ -61,16 +60,14 @@ export const runIntradayStockUpdate = async () => {
         const oldPerf1Y = stock.perf1Y || 0;
 
         const perf1D = calculatePercentageChange(yesterdayClose, livePrice);
-
-        // Recalculate other metrics based on the change from the last known 1D performance
         const dailyChange = perf1D - oldPerf1D;
+
         const perf1W = oldPerf1W + dailyChange;
         const perf1M = oldPerf1M + dailyChange;
         const perf3M = oldPerf3M + dailyChange;
         const perf6M = oldPerf6M + dailyChange;
         const perf1Y = oldPerf1Y + dailyChange;
 
-        // Ensure momentumScore is never NaN
         const momentumScore = parseFloat(
           (perf3M * 0.4 + perf6M * 0.4 + perf1Y * 0.2).toFixed(2)
         );
@@ -87,7 +84,7 @@ export const runIntradayStockUpdate = async () => {
                 perf3M: parseFloat(perf3M.toFixed(2)),
                 perf6M: parseFloat(perf6M.toFixed(2)),
                 perf1Y: parseFloat(perf1Y.toFixed(2)),
-                momentumScore, // This will now always be a valid number
+                momentumScore,
                 lastRefreshed: new Date(),
               },
             },
@@ -114,7 +111,6 @@ export const runIntradayStockUpdate = async () => {
 
 // --- EXISTING JOBS ---
 export const runDailyStockUpdate = async () => {
-  // This remains the same for deep, historical analysis
   console.log("JOB_STARTED: Running daily EXPERT stock data update...");
   try {
     const analysisData = await runFullStockAnalysis();
@@ -144,7 +140,6 @@ export const runDailyStockUpdate = async () => {
 };
 
 export const runDailyPerformanceUpdate = async () => {
-  // This remains the same
   console.log("JOB_STARTED: Running daily portfolio performance update...");
   try {
     const allPortfolios = await Portfolio.find({});
@@ -152,17 +147,22 @@ export const runDailyPerformanceUpdate = async () => {
       console.log("JOB_INFO: No portfolios found to update.");
       return;
     }
+
     const allTickers = [
       ...new Set(allPortfolios.flatMap((p) => p.stocks.map((s) => s.ticker))),
     ];
     if (allTickers.length === 0) return;
+
     const currentPriceData = await fetchQuotesForMultipleTickers(allTickers);
     const priceMap = new Map(
       currentPriceData.map((s) => [s.symbol, s.regularMarketPrice])
     );
+
     for (const portfolio of allPortfolios) {
+      const previousValue = portfolio.currentValue; // <-- Store the old value before recalculating
       let newCurrentValue = 0;
       const weightPerStock = portfolio.initialValue / portfolio.stocks.length;
+
       for (const stock of portfolio.stocks) {
         const currentPrice = priceMap.get(stock.ticker);
         const priceAtAddition = stock.priceAtAddition;
@@ -173,6 +173,12 @@ export const runDailyPerformanceUpdate = async () => {
           newCurrentValue += weightPerStock;
         }
       }
+
+      // --- NEW: Calculate Day's Return ---
+      const dayReturnPercent = previousValue
+        ? ((newCurrentValue - previousValue) / previousValue) * 100
+        : 0;
+
       const newCurrentReturnPercent =
         ((newCurrentValue - portfolio.initialValue) / portfolio.initialValue) *
         100;
@@ -187,11 +193,16 @@ export const runDailyPerformanceUpdate = async () => {
         portfolio.maxDrawdownPercent || 0,
         drawdown
       );
+
+      // --- Update portfolio with all new and existing values ---
+      portfolio.previousValue = previousValue;
       portfolio.currentValue = newCurrentValue;
+      portfolio.dayReturnPercent = dayReturnPercent;
       portfolio.currentReturnPercent = newCurrentReturnPercent;
       portfolio.peakReturnPercent = newPeakReturn;
       portfolio.maxDrawdownPercent = newMaxDrawdown;
       portfolio.lastPerformanceUpdate = new Date();
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const existingEntryIndex = portfolio.performanceHistory.findIndex(
@@ -201,11 +212,13 @@ export const runDailyPerformanceUpdate = async () => {
         date: today,
         portfolioReturn: newCurrentReturnPercent,
       };
+
       if (existingEntryIndex > -1) {
         portfolio.performanceHistory[existingEntryIndex] = newHistoryEntry;
       } else {
         portfolio.performanceHistory.push(newHistoryEntry);
       }
+
       await portfolio.save();
     }
     console.log(
@@ -220,7 +233,6 @@ export const runDailyPerformanceUpdate = async () => {
 };
 
 export const runMonthlyPortfolioCreation = async () => {
-  // This remains the same
   console.log("JOB_STARTED: Running EXPERT monthly portfolio creation...");
   try {
     const allStocks = await StockData.find().lean();

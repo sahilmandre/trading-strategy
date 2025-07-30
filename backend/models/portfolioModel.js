@@ -12,7 +12,6 @@ const StockInPortfolioSchema = new mongoose.Schema(
   { _id: false }
 );
 
-// --- NEW SUB-SCHEMA for daily performance snapshots ---
 const PerformanceEntrySchema = new mongoose.Schema(
   {
     date: { type: Date, required: true },
@@ -32,11 +31,12 @@ const PortfolioSchema = new mongoose.Schema(
     lastPerformanceUpdate: { type: Date },
     initialValue: { type: Number },
     currentValue: { type: Number },
+    previousValue: { type: Number }, // <-- NEW: Store the previous day's value
     currentReturnPercent: { type: Number, default: 0 },
+    dayReturnPercent: { type: Number, default: 0 }, // <-- NEW: Store the day's return
     peakReturnPercent: { type: Number, default: 0 },
     maxDrawdownPercent: { type: Number, default: 0 },
 
-    // --- NEW FIELD to store historical data for charts ---
     performanceHistory: [PerformanceEntrySchema],
   },
   {
