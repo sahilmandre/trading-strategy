@@ -4,21 +4,20 @@ import express from 'express';
 import {
     registerUser,
     loginUser,
-    generateTelegramLinkToken // <-- Import the new controller
+    generateTelegramLinkToken,
+    getUserProfile,
+    disconnectTelegram
 } from '../controllers/userController.js';
-import { protect } from '../middleware/authMiddleware.js'; // <-- Import middleware
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// @route   POST /api/users/register
 router.post('/register', registerUser);
-
-// @route   POST /api/users/login
 router.post('/login', loginUser);
 
-// @route   POST /api/users/telegram-token
-// @desc    Generate a token for linking telegram
-// @access  Private
-router.post('/telegram-token', protect, generateTelegramLinkToken); // <-- Add the new protected route
+// Protected routes
+router.get('/profile', protect, getUserProfile);
+router.post('/telegram-token', protect, generateTelegramLinkToken);
+router.post('/telegram-disconnect', protect, disconnectTelegram);
 
 export default router;

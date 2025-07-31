@@ -6,7 +6,7 @@ import Portfolio from "../models/portfolioModel.js";
 import Alert from '../models/alertModel.js'; // <-- FIX: Import Alert model
 import { fetchQuoteData as fetchQuotesForMultipleTickers } from "../services/dataService.js";
 import yahooFinance from "yahoo-finance2";
-import { sendTelegramMessage } from "../services/telegramService.js";
+// import { sendTelegramMessage } from "../services/telegramService.js";
 
 // --- HELPER FUNCTION ---
 const calculatePercentageChange = (oldPrice, newPrice) => {

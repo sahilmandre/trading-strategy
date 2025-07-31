@@ -2,42 +2,28 @@
 
 import axios from 'axios';
 
-// Get the base URL from the environment variables
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
 });
 
-/**
- * Registers a new user.
- * @param {object} userData - An object containing email and password.
- * @returns {Promise<object>} A promise that resolves to the user object, including a token.
- */
 export const register = async (userData) => {
   try {
     const { data } = await apiClient.post('/users/register', userData);
     if (data.success && data.token) {
-      // Store user info in local storage on successful registration
       localStorage.setItem('userInfo', JSON.stringify(data));
     }
     return data;
   } catch (error) {
-    // Throw the specific error message from the backend if it exists
     throw new Error(error.response?.data?.message || 'Registration failed.');
   }
 };
 
-/**
- * Logs in a user.
- * @param {object} userData - An object containing email and password.
- * @returns {Promise<object>} A promise that resolves to the user object, including a token.
- */
 export const login = async (userData) => {
   try {
     const { data } = await apiClient.post('/users/login', userData);
     if (data.success && data.token) {
-      // Store user info in local storage on successful login
       localStorage.setItem('userInfo', JSON.stringify(data));
     }
     return data;
@@ -46,28 +32,42 @@ export const login = async (userData) => {
   }
 };
 
-/**
- * Logs out a user by removing their data from local storage.
- */
 export const logout = () => {
   localStorage.removeItem('userInfo');
 };
 
-/**
- * Generates a temporary token for linking a Telegram account.
- * @param {string} token - The user's JWT for authorization.
- * @returns {Promise<object>} A promise that resolves to the generated token data.
- */
 export const generateTelegramToken = async (token) => {
   const config = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { Authorization: `Bearer ${token}` },
   };
   try {
     const { data } = await apiClient.post('/users/telegram-token', {}, config);
     return data;
   } catch (error) {
     throw new Error(error.response?.data?.message || 'Failed to generate token.');
+  }
+};
+
+export const getUserProfile = async (token) => {
+  const config = {
+    headers: { Authorization: `Bearer ${token}` },
+  };
+  try {
+    const { data } = await apiClient.get('/users/profile', config);
+    return data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch user profile.');
+  }
+};
+
+export const disconnectTelegram = async (token) => {
+  const config = {
+    headers: { Authorization: `Bearer ${token}` },
+  };
+  try {
+    const { data } = await apiClient.post('/users/telegram-disconnect', {}, config);
+    return data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to disconnect Telegram.');
   }
 };

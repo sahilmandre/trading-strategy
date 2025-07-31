@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 // Function to generate a JWT
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '30d', // Token will be valid for 30 days
+    expiresIn: '30d',
   });
 };
 
@@ -36,6 +36,7 @@ export const registerUser = async (req, res) => {
         _id: user._id,
         email: user.email,
         token: generateToken(user._id),
+        telegramChatId: user.telegramChatId,
       });
     } else {
       res.status(400).json({ success: false, message: 'Invalid user data' });
@@ -63,6 +64,7 @@ export const loginUser = async (req, res) => {
         _id: user._id,
         email: user.email,
         token: generateToken(user._id),
+        telegramChatId: user.telegramChatId,
       });
     } else {
       res.status(401).json({ success: false, message: 'Invalid email or password' });
@@ -86,7 +88,6 @@ export const generateTelegramLinkToken = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // --- FIX: Replaced crypto.randomBytes with a simple and reliable character generator ---
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let token = '';
     for (let i = 0; i < 6; i++) {
@@ -103,5 +104,48 @@ export const generateTelegramLinkToken = async (req, res) => {
   } catch (error) {
     console.error(`[userController] Error in generateTelegramLinkToken: ${error.message}`);
     res.status(500).json({ success: false, message: 'Server error while generating token' });
+  }
+};
+
+/**
+ * @desc    Get user profile
+ * @route   GET /api/users/profile
+ * @access  Private
+ */
+export const getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (user) {
+      res.json({
+        _id: user._id,
+        email: user.email,
+        telegramChatId: user.telegramChatId,
+      });
+    } else {
+      res.status(404).json({ success: false, message: 'User not found' });
+    }
+  } catch (error) {
+    console.error(`[userController] Error in getUserProfile: ${error.message}`);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Disconnect a user's Telegram account
+ * @route   POST /api/users/telegram-disconnect
+ * @access  Private
+ */
+export const disconnectTelegram = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    user.telegramChatId = undefined;
+    await user.save();
+    res.status(200).json({ success: true, message: 'Telegram account disconnected.' });
+  } catch (error) {
+    console.error(`[userController] Error in disconnectTelegram: ${error.message}`);
+    res.status(500).json({ success: false, message: 'Server error while disconnecting.' });
   }
 };
