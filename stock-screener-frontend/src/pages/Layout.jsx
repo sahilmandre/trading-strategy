@@ -4,7 +4,7 @@ import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../redux/authSlice';
-import { clearRebalanceState } from '../redux/rebalanceSlice'; // <-- Import clear action
+import { clearRebalanceState } from '../redux/rebalanceSlice';
 import toast from 'react-hot-toast';
 
 export default function Layout() {
@@ -19,7 +19,7 @@ export default function Layout() {
 
   const handleLogout = () => {
     dispatch(logout());
-    dispatch(clearRebalanceState()); // <-- Clear the rebalance state on logout
+    dispatch(clearRebalanceState());
     toast.success('Logged out successfully!');
     navigate('/login');
   };
@@ -45,7 +45,7 @@ export default function Layout() {
 
               {userInfo ? (
                 <>
-                  <span className="text-gray-400 text-sm">Welcome, {userInfo.email}</span>
+                  <NavLink to="/settings" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium" style={({ isActive }) => (isActive ? activeLinkStyle : undefined)}>Settings</NavLink>
                   <button onClick={handleLogout} className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Logout</button>
                 </>
               ) : (

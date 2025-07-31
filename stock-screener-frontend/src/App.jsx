@@ -12,8 +12,9 @@ import MomentumPage from './pages/Momentum/MomentumPage';
 import RebalancePage from './pages/Rebalance/RebalancePage';
 import LoginPage from './pages/Login/LoginPage';
 import RegisterPage from './pages/Register/RegisterPage';
-import PrivateRoute from './components/shared/PrivateRoute'; // <-- Import PrivateRoute
+import PrivateRoute from './components/shared/PrivateRoute';
 import StockDetailPage from './pages/StockDetail/StockDetailPage';
+import SettingsPage from './pages/Settings/SettingsPage'; // <-- Import the new Settings page
 
 // Define the application routes
 const router = createBrowserRouter([
@@ -22,15 +23,11 @@ const router = createBrowserRouter([
     element: <Layout />,
     children: [
       // --- Public Routes ---
-      // These routes are accessible to everyone.
       { index: true, element: <HomePage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
 
       // --- Protected Routes ---
-      // The PrivateRoute component will check for a logged-in user.
-      // If the user is logged in, it will render the nested child route.
-      // If not, it will redirect to the /login page.
       {
         path: '',
         element: <PrivateRoute />,
@@ -40,6 +37,7 @@ const router = createBrowserRouter([
           { path: 'portfolios', element: <ModelPortfoliosPage /> },
           { path: 'rebalance', element: <RebalancePage /> },
           { path: 'stocks/:ticker', element: <StockDetailPage /> },
+          { path: 'settings', element: <SettingsPage /> }, // <-- Add the new settings route
         ],
       },
     ],

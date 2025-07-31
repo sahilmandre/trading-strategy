@@ -52,3 +52,22 @@ export const login = async (userData) => {
 export const logout = () => {
   localStorage.removeItem('userInfo');
 };
+
+/**
+ * Generates a temporary token for linking a Telegram account.
+ * @param {string} token - The user's JWT for authorization.
+ * @returns {Promise<object>} A promise that resolves to the generated token data.
+ */
+export const generateTelegramToken = async (token) => {
+  const config = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+  try {
+    const { data } = await apiClient.post('/users/telegram-token', {}, config);
+    return data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to generate token.');
+  }
+};

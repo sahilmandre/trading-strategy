@@ -72,3 +72,36 @@ export const loginUser = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error during login' });
   }
 };
+
+/**
+ * @desc    Generate a token for linking a Telegram account
+ * @route   POST /api/users/telegram-token
+ * @access  Private
+ */
+export const generateTelegramLinkToken = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // --- FIX: Replaced crypto.randomBytes with a simple and reliable character generator ---
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let token = '';
+    for (let i = 0; i < 6; i++) {
+      token += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    user.telegramLinkToken = token;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      token: token,
+    });
+  } catch (error) {
+    console.error(`[userController] Error in generateTelegramLinkToken: ${error.message}`);
+    res.status(500).json({ success: false, message: 'Server error while generating token' });
+  }
+};

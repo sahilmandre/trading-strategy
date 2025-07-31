@@ -26,6 +26,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.4.1",
     "node-cron": "^3.0.3",
+    "node-telegram-bot-api": "^0.66.0",
     "yahoo-finance2": "^2.11.3"
   },
   "devDependencies": {

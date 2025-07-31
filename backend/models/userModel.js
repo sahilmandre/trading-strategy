@@ -19,6 +19,15 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Please provide a password'],
     minlength: 6,
   },
+  // --- NEW FIELDS FOR TELEGRAM INTEGRATION ---
+  telegramChatId: {
+    type: String,
+    unique: true,
+    sparse: true, // Allows multiple documents to have no value for this field
+  },
+  telegramLinkToken: {
+    type: String,
+  },
 }, {
   timestamps: true,
 });
