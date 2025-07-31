@@ -5,6 +5,7 @@ import {
   createAlert,
   getActiveAlerts,
   deleteAlert,
+    sendTestNotification,
 } from '../controllers/alertController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -19,5 +20,8 @@ router.route('/')
 
 router.route('/:id')
   .delete(deleteAlert);
+
+// Add the new route for sending a test notification
+router.post('/test-notification', sendTestNotification);
 
 export default router;

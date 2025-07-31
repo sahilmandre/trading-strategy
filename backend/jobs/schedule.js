@@ -1,20 +1,18 @@
-// File: jobs/schedule.js
+// File: backend/jobs/schedule.js
 
 import { runFullStockAnalysis } from "../services/analysisService.js";
 import StockData from "../models/stockDataModel.js";
 import Portfolio from "../models/portfolioModel.js";
-import Alert from '../models/alertModel.js'; // <-- FIX: Import Alert model
+import Alert from '../models/alertModel.js';
 import { fetchQuoteData as fetchQuotesForMultipleTickers } from "../services/dataService.js";
+import { sendTelegramMessage } from '../services/notificationService.js'; // <-- FIX: Added the missing import
 import yahooFinance from "yahoo-finance2";
-// import { sendTelegramMessage } from "../services/telegramService.js";
 
 // --- HELPER FUNCTION ---
 const calculatePercentageChange = (oldPrice, newPrice) => {
   if (oldPrice === 0 || !oldPrice || !newPrice) return 0;
   return parseFloat((((newPrice - oldPrice) / oldPrice) * 100).toFixed(2));
 };
-
-
 
 /**
  * NEW: This job runs every 5 minutes to check for triggered price alerts.
@@ -28,40 +26,40 @@ export const runAlertChecks = async () => {
       return;
     }
 
-    const uniqueTickers = [...new Set(activeAlerts.map(alert => alert.ticker))];
-    const liveQuotes = await fetchQuotesForMultipleTickers(uniqueTickers);
-    const priceMap = new Map(liveQuotes.map(q => [q.symbol, q.regularMarketPrice]));
+      const uniqueTickers = [...new Set(activeAlerts.map(alert => alert.ticker))];
+      const liveQuotes = await fetchQuotesForMultipleTickers(uniqueTickers);
+      const priceMap = new Map(liveQuotes.map(q => [q.symbol, q.regularMarketPrice]));
 
-    for (const alert of activeAlerts) {
-      const currentPrice = priceMap.get(alert.ticker);
-      if (!currentPrice) continue;
+      for (const alert of activeAlerts) {
+        const currentPrice = priceMap.get(alert.ticker);
+        if (!currentPrice) continue;
 
-      let triggered = false;
-      if (alert.condition === 'above' && currentPrice > alert.targetPrice) {
-        triggered = true;
-      } else if (alert.condition === 'below' && currentPrice < alert.targetPrice) {
-        triggered = true;
+          let triggered = false;
+          if (alert.condition === 'above' && currentPrice > alert.targetPrice) {
+            triggered = true;
+          } else if (alert.condition === 'below' && currentPrice < alert.targetPrice) {
+            triggered = true;
+          }
+
+          if (triggered) {
+            const message = `📈 **Price Alert!**\n\n\`${alert.ticker}\` has crossed your target.\n\n*Target:* ${alert.condition} ₹${alert.targetPrice}\n*Current Price:* ₹${currentPrice.toFixed(2)}`;
+            sendTelegramMessage(alert.telegramChatId, message);
+
+          // Deactivate the alert to prevent duplicate notifications
+          alert.isActive = false;
+          await alert.save();
+          console.log(`[ALERT_TRIGGERED] Sent notification for ${alert.ticker} to user ${alert.user}`);
+        }
       }
-
-      if (triggered) {
-        const message = `📈 **Price Alert!**\n\n\`${alert.ticker}\` has crossed your target.\n\n*Target:* ${alert.condition} ₹${alert.targetPrice}\n*Current Price:* ₹${currentPrice.toFixed(2)}`;
-        sendTelegramMessage(alert.telegramChatId, message);
-
-        // Deactivate the alert to prevent duplicate notifications
-        alert.isActive = false;
-        await alert.save();
-        console.log(`[ALERT_TRIGGERED] Sent notification for ${alert.ticker} to user ${alert.user}`);
-      }
+      console.log(`[JOB_SUCCESS] Finished checking ${activeAlerts.length} alerts.`);
+    } catch (error) {
+      console.error("[JOB_ERROR] An error occurred during the alert checking job.", error);
     }
-    console.log(`[JOB_SUCCESS] Finished checking ${activeAlerts.length} alerts.`);
-  } catch (error) {
-    console.error("[JOB_ERROR] An error occurred during the alert checking job.", error);
-  }
 };
 
+
 /**
- * NEW: This job runs frequently to update prices and key metrics.
- * It fetches live prices and recalculates all performance data, then updates the DB.
+ * This job runs frequently to update prices and key metrics.
  */
 export const runIntradayStockUpdate = async () => {
   console.log(

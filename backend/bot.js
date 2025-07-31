@@ -1,28 +1,21 @@
 // File: backend/bot.js
 
-import TelegramBot from 'node-telegram-bot-api';
 import User from './models/userModel.js';
 import Alert from './models/alertModel.js';
 import StockData from './models/stockDataModel.js';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const token = process.env.TELEGRAM_BOT_TOKEN;
 
 // In-memory store for multi-step command conversations
 const userStates = {};
 
 /**
- * Initializes the Telegram bot and sets up all command listeners.
+ * Sets up all command listeners for the Telegram bot.
+ * @param {TelegramBot} bot - The single, initialized TelegramBot instance.
  */
-const initializeBot = () => {
-  if (!token) {
-    console.warn('[Telegram Bot] Warning: TELEGRAM_BOT_TOKEN is not set in .env. Bot features will be disabled.');
+const setupBotCommands = (bot) => {
+    if (!bot) {
+        console.warn('[Telegram Bot] Cannot set up commands, bot is not initialized.');
     return;
   }
-
-  const bot = new TelegramBot(token, { polling: true });
 
   // --- Command: /start ---
   bot.onText(/\/start/, (msg) => {
@@ -52,6 +45,7 @@ const initializeBot = () => {
     }
   });
 
+    // ... (all other commands: /add_alert, /my_alerts, /delete_alert, etc. remain the same) ...
   // --- Command: /add_alert ---
   bot.onText(/\/add_alert/, async (msg) => {
     const chatId = msg.chat.id;
@@ -118,7 +112,6 @@ const initializeBot = () => {
     const chatId = msg.chat.id;
     const state = userStates[chatId];
 
-    // Ignore messages that are commands
     if (msg.text.startsWith('/')) return;
 
     if (state && state.command === 'add_alert') {
@@ -130,7 +123,6 @@ const initializeBot = () => {
             bot.sendMessage(chatId, "❌ Invalid ticker. Please provide a valid NSE ticker (e.g., TCS.NS).");
             return;
           }
-          // --- IMPROVEMENT: Fetch and display the current price ---
           const currentPrice = stockExists.currentPrice;
           state.ticker = ticker;
           state.step = 'awaiting_price';
@@ -187,11 +179,11 @@ const initializeBot = () => {
         parse_mode: 'Markdown'
       });
       
-      delete userStates[chatId]; // Clean up the state
+        delete userStates[chatId];
     }
   });
 
-  console.log('🤖 Telegram Bot is initialized and listening for commands...');
+    console.log('🤖 Telegram Bot commands are set up and listening...');
 };
 
-export default initializeBot;
+export default setupBotCommands;

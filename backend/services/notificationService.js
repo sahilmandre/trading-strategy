@@ -1,17 +1,16 @@
 // File: backend/services/notificationService.js
 
-import TelegramBot from 'node-telegram-bot-api';
-import dotenv from 'dotenv';
+// This variable will hold the single, initialized bot instance.
+let bot = null;
 
-dotenv.config();
-
-const token = process.env.TELEGRAM_BOT_TOKEN;
-let bot;
-
-// Initialize bot only if token is available
-if (token) {
-  bot = new TelegramBot(token);
-}
+/**
+ * Initializes the notification service with the bot instance.
+ * This is called once when the server starts.
+ * @param {TelegramBot} botInstance - The initialized TelegramBot instance.
+ */
+export const initNotificationService = (botInstance) => {
+    bot = botInstance;
+};
 
 /**
  * Sends a message to a specified Telegram chat.

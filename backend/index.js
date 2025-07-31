@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import cron from "node-cron";
+import TelegramBot from 'node-telegram-bot-api'; // <-- Import TelegramBot
 
 // --- Route Imports ---
 import stockRoutes from "./routes/stockRoutes.js";
@@ -19,10 +20,13 @@ import {
   runDailyStockUpdate,
   runMonthlyPortfolioCreation,
   runDailyPerformanceUpdate,
-  runIntradayStockUpdate, // <-- Import the new job
-  runAlertChecks
+  runIntradayStockUpdate,
+  runAlertChecks,
 } from "./jobs/schedule.js";
-import initializeBot from "./bot.js";
+
+// --- Bot & Service Imports ---
+import setupBotCommands from './bot.js';
+import { initNotificationService } from './services/notificationService.js';
 
 // --- Basic Setup ---
 dotenv.config();
@@ -55,62 +59,40 @@ app.get("/", (req, res) => {
   res.send("Welcome to the Stock Screener API!");
 });
 
-
 // --- Initialize Telegram Bot ---
-// The bot will now start listening for commands like /start and /link
-initializeBot();
+const token = process.env.TELEGRAM_BOT_TOKEN;
+if (token) {
+  const bot = new TelegramBot(token, { polling: true });
+  initNotificationService(bot); // Initialize the notification service with the bot instance
+  setupBotCommands(bot);      // Initialize the command listeners with the bot instance
+  console.log('🤖 Telegram Bot is initialized and listening...');
+} else {
+  console.warn('[Telegram Bot] Warning: TELEGRAM_BOT_TOKEN is not set. Bot features will be disabled.');
+}
 
 // --- Scheduled Tasks (Cron Jobs) ---
 console.log("🕒 Setting up scheduled jobs...");
 
-// Read schedules from environment variables with new defaults
-const alertCheckSchedule = process.env.ALERT_CHECK_SCHEDULE || "*/5 * * * *"; // Every 5 minutes
-const intradayUpdateSchedule = process.env.INTRADAY_UPDATE_SCHEDULE || "*/10 * * * *"; // Every 10 minutes
-const dailyStockUpdateSchedule = process.env.DAILY_STOCK_UPDATE_SCHEDULE || "0 * * * *"; // Every hour
+const alertCheckSchedule = process.env.ALERT_CHECK_SCHEDULE || "*/5 * * * *";
+const intradayUpdateSchedule = process.env.INTRADAY_UPDATE_SCHEDULE || "*/10 * * * *";
+const dailyStockUpdateSchedule = process.env.DAILY_STOCK_UPDATE_SCHEDULE || "0 * * * *";
 const dailyPerformanceUpdateSchedule = process.env.DAILY_PERFORMANCE_UPDATE_SCHEDULE || "0 2 * * *";
 const monthlyPortfolioCreationSchedule = process.env.MONTHLY_PORTFOLIO_CREATION_SCHEDULE || "0 3 1 * *";
 
-
-
-// NEW: Price Alert checking job
-cron.schedule(alertCheckSchedule, runAlertChecks, {
-  scheduled: true,
-  timezone: "Asia/Kolkata",
-});
+cron.schedule(alertCheckSchedule, runAlertChecks, { scheduled: true, timezone: "Asia/Kolkata" });
 console.log(`[JOB SCHEDULED] Price Alert Checks at: ${alertCheckSchedule}`);
 
-// NEW: Intraday update job
-cron.schedule(intradayUpdateSchedule, runIntradayStockUpdate, {
-  scheduled: true,
-  timezone: "Asia/Kolkata",
-});
-console.log(
-  `[JOB SCHEDULED] Intraday Stock Update at: ${intradayUpdateSchedule}`
-);
+cron.schedule(intradayUpdateSchedule, runIntradayStockUpdate, { scheduled: true, timezone: "Asia/Kolkata" });
+console.log(`[JOB SCHEDULED] Intraday Stock Update at: ${intradayUpdateSchedule}`);
 
-cron.schedule(dailyStockUpdateSchedule, runDailyStockUpdate, {
-  scheduled: true,
-  timezone: "Asia/Kolkata",
-});
-console.log(
-  `[JOB SCHEDULED] Daily Stock Update at: ${dailyStockUpdateSchedule}`
-);
+cron.schedule(dailyStockUpdateSchedule, runDailyStockUpdate, { scheduled: true, timezone: "Asia/Kolkata" });
+console.log(`[JOB SCHEDULED] Daily Stock Update at: ${dailyStockUpdateSchedule}`);
 
-cron.schedule(dailyPerformanceUpdateSchedule, runDailyPerformanceUpdate, {
-  scheduled: true,
-  timezone: "Asia/Kolkata",
-});
-console.log(
-  `[JOB SCHEDULED] Daily Performance Update at: ${dailyPerformanceUpdateSchedule}`
-);
+cron.schedule(dailyPerformanceUpdateSchedule, runDailyPerformanceUpdate, { scheduled: true, timezone: "Asia/Kolkata" });
+console.log(`[JOB SCHEDULED] Daily Performance Update at: ${dailyPerformanceUpdateSchedule}`);
 
-cron.schedule(monthlyPortfolioCreationSchedule, runMonthlyPortfolioCreation, {
-  scheduled: true,
-  timezone: "Asia/Kolkata",
-});
-console.log(
-  `[JOB SCHEDULED] Monthly Portfolio Creation at: ${monthlyPortfolioCreationSchedule}`
-);
+cron.schedule(monthlyPortfolioCreationSchedule, runMonthlyPortfolioCreation, { scheduled: true, timezone: "Asia/Kolkata" });
+console.log(`[JOB SCHEDULED] Monthly Portfolio Creation at: ${monthlyPortfolioCreationSchedule}`);
 
 // --- Start Server ---
 app.listen(PORT, () => {
