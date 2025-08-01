@@ -5,9 +5,28 @@ import {
   runDailyStockUpdate,
   runDailyPerformanceUpdate,
   runMonthlyPortfolioCreation,
-} from '../jobs/schedule.js';
+} from "../jobs/schedule.js";
 import User from "../models/userModel.js";
+
 import { sendTelegramMessage } from "../services/notificationService.js";
+import { getJobStatuses } from "../services/jobTrackerService.js"; // <-- Import status getter
+
+/**
+ * @desc    Get the status of all scheduled jobs
+ * @route   GET /api/admin/job-status
+ * @access  Admin
+ */
+export const getSystemJobStatuses = (req, res) => {
+  try {
+    const statuses = getJobStatuses();
+    res.status(200).json({ success: true, data: statuses });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching job statuses.",
+    });
+  }
+};
 
 /**
  * @desc    Get all users
@@ -37,12 +56,10 @@ export const updateUserAdminStatus = async (req, res) => {
     if (user) {
       // Prevent admin from removing their own admin status
       if (user._id.toString() === req.user.id) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Admin cannot remove their own admin rights.",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Admin cannot remove their own admin rights.",
+        });
       }
       user.isAdmin = req.body.isAdmin;
       const updatedUser = await user.save();
@@ -114,34 +131,28 @@ export const broadcastTelegramMessage = async (req, res) => {
     const usersToNotify = await User.find({ telegramChatId: { $ne: null } });
 
     if (usersToNotify.length === 0) {
-      return res
-        .status(200)
-        .json({
-          success: true,
-          message: "No users with linked Telegram accounts to notify.",
-        });
+      return res.status(200).json({
+        success: true,
+        message: "No users with linked Telegram accounts to notify.",
+      });
     }
 
     for (const user of usersToNotify) {
       sendTelegramMessage(user.telegramChatId, message);
     }
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: `Broadcast sent to ${usersToNotify.length} user(s).`,
-      });
+    res.status(200).json({
+      success: true,
+      message: `Broadcast sent to ${usersToNotify.length} user(s).`,
+    });
   } catch (error) {
     console.error(
       `[adminController] Error in broadcastTelegramMessage: ${error.message}`
     );
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while sending broadcast.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while sending broadcast.",
+    });
   }
 };
 
@@ -194,10 +205,8 @@ export const triggerPortfolioCreation = (req, res) => {
     "[ADMIN] Manual trigger for Monthly Portfolio Creation received."
   );
   runMonthlyPortfolioCreation();
-  res
-    .status(200)
-    .json({
-      success: true,
-      message: "Monthly portfolio creation job started.",
-    });
+  res.status(200).json({
+    success: true,
+    message: "Monthly portfolio creation job started.",
+  });
 };

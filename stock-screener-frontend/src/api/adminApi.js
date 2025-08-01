@@ -87,3 +87,18 @@ export const broadcastMessage = async ({ message, token }) => {
         throw new Error(error.response?.data?.message || 'Failed to send broadcast.');
     }
 };
+
+/**
+ * Fetches the statuses of all scheduled jobs.
+ * @param {string} token - The admin user's JWT.
+ * @returns {Promise<object>}
+ */
+export const getJobStatuses = async (token) => {
+    const config = { headers: { Authorization: `Bearer ${token}` } };
+    try {
+        const { data } = await apiClient.get('/admin/job-status', config);
+        return data.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.message || 'Failed to fetch job statuses.');
+    }
+};

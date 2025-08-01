@@ -10,6 +10,7 @@ import {
   updateUserAdminStatus,
   deleteUser,
   broadcastTelegramMessage,
+  getSystemJobStatuses,
 } from "../controllers/adminController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { admin } from "../middleware/adminMiddleware.js";
@@ -18,6 +19,9 @@ const router = express.Router();
 
 // All routes in this file are protected and for admins only
 router.use(protect, admin);
+
+// System Monitoring
+router.get("/job-status", getSystemJobStatuses); 
 
 // Job Triggers
 router.post("/run-intraday-update", triggerIntradayUpdate);
