@@ -14,7 +14,8 @@ import LoginPage from './pages/Login/LoginPage';
 import RegisterPage from './pages/Register/RegisterPage';
 import PrivateRoute from './components/shared/PrivateRoute';
 import StockDetailPage from './pages/StockDetail/StockDetailPage';
-import SettingsPage from './pages/Settings/SettingsPage'; // <-- Import the new Settings page
+import SettingsPage from './pages/Settings/SettingsPage';
+import AdminPage from './pages/Admin/AdminPage'; // <-- Import the new Admin page
 
 // Define the application routes
 const router = createBrowserRouter([
@@ -37,7 +38,8 @@ const router = createBrowserRouter([
           { path: 'portfolios', element: <ModelPortfoliosPage /> },
           { path: 'rebalance', element: <RebalancePage /> },
           { path: 'stocks/:ticker', element: <StockDetailPage /> },
-          { path: 'settings', element: <SettingsPage /> }, // <-- Add the new settings route
+          { path: 'settings', element: <SettingsPage /> },
+          { path: 'admin', element: <AdminPage /> }, // <-- Add the new admin route
         ],
       },
     ],

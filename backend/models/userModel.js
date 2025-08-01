@@ -19,14 +19,19 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Please provide a password'],
     minlength: 6,
   },
-  // --- NEW FIELDS FOR TELEGRAM INTEGRATION ---
   telegramChatId: {
     type: String,
     unique: true,
-    sparse: true, // Allows multiple documents to have no value for this field
+    sparse: true,
   },
   telegramLinkToken: {
     type: String,
+  },
+  // --- NEW FIELD FOR ADMIN ROLE ---
+  isAdmin: {
+    type: Boolean,
+    required: true,
+    default: false,
   },
 }, {
   timestamps: true,
@@ -34,12 +39,9 @@ const userSchema = new mongoose.Schema({
 
 // Mongoose middleware to hash the password before saving a new user
 userSchema.pre('save', async function (next) {
-  // Only run this function if password was actually modified
   if (!this.isModified('password')) {
     return next();
   }
-
-  // Hash the password with a cost factor of 12
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
   next();

@@ -45,6 +45,9 @@ export default function Layout() {
 
               {userInfo ? (
                 <>
+                  {userInfo.isAdmin && (
+                    <NavLink to="/admin" className="text-yellow-400 hover:text-yellow-300 px-3 py-2 rounded-md text-sm font-bold" style={({ isActive }) => (isActive ? activeLinkStyle : undefined)}>Admin</NavLink>
+                  )}
                   <NavLink to="/settings" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium" style={({ isActive }) => (isActive ? activeLinkStyle : undefined)}>Settings</NavLink>
                   <button onClick={handleLogout} className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Logout</button>
                 </>

@@ -5,7 +5,7 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import cron from "node-cron";
-import TelegramBot from 'node-telegram-bot-api'; // <-- Import TelegramBot
+import TelegramBot from "node-telegram-bot-api";
 
 // --- Route Imports ---
 import stockRoutes from "./routes/stockRoutes.js";
@@ -13,7 +13,8 @@ import portfolioRoutes from "./routes/portfolioRoutes.js";
 import rebalanceRoutes from "./routes/rebalanceRoutes.js";
 import backtestRoutes from "./routes/backtestRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
-import alertRoutes from './routes/alertRoutes.js';
+import alertRoutes from "./routes/alertRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js"; // <-- Import admin routes
 
 // --- Job Imports ---
 import {
@@ -25,8 +26,8 @@ import {
 } from "./jobs/schedule.js";
 
 // --- Bot & Service Imports ---
-import setupBotCommands from './bot.js';
-import { initNotificationService } from './services/notificationService.js';
+import setupBotCommands from "./bot.js";
+import { initNotificationService } from "./services/notificationService.js";
 
 // --- Basic Setup ---
 dotenv.config();
@@ -53,7 +54,8 @@ app.use("/api/portfolios", portfolioRoutes);
 app.use("/api/rebalance", rebalanceRoutes);
 app.use("/api/backtest", backtestRoutes);
 app.use("/api/users", userRoutes);
-app.use('/api/alerts', alertRoutes);
+app.use("/api/alerts", alertRoutes);
+app.use("/api/admin", adminRoutes); // <-- Use admin routes
 
 app.get("/", (req, res) => {
   res.send("Welcome to the Stock Screener API!");
@@ -63,11 +65,13 @@ app.get("/", (req, res) => {
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (token) {
   const bot = new TelegramBot(token, { polling: true });
-  initNotificationService(bot); // Initialize the notification service with the bot instance
-  setupBotCommands(bot);      // Initialize the command listeners with the bot instance
-  console.log('🤖 Telegram Bot is initialized and listening...');
+  initNotificationService(bot);
+  setupBotCommands(bot);
+  console.log("🤖 Telegram Bot is initialized and listening...");
 } else {
-  console.warn('[Telegram Bot] Warning: TELEGRAM_BOT_TOKEN is not set. Bot features will be disabled.');
+  console.warn(
+    "[Telegram Bot] Warning: TELEGRAM_BOT_TOKEN is not set. Bot features will be disabled."
+  );
 }
 
 // --- Scheduled Tasks (Cron Jobs) ---
