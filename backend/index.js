@@ -15,6 +15,7 @@ import backtestRoutes from "./routes/backtestRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import alertRoutes from "./routes/alertRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js"; // <-- Import admin routes
+import customPortfolioRoutes from './routes/customPortfolioRoutes.js';
 
 // --- Job Imports ---
 import {
@@ -56,6 +57,11 @@ app.use("/api/backtest", backtestRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/admin", adminRoutes); // <-- Use admin routes
+app.use('/api/my-portfolios', customPortfolioRoutes); // <-- Use custom portfolio routes
+// app.use('/api/my-portfolios', customPortfolioRoutes); // <-- Use custom portfolio routes
+
+
+
 
 app.get("/", (req, res) => {
   res.send("Welcome to the Stock Screener API!");

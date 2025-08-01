@@ -15,7 +15,9 @@ import RegisterPage from './pages/Register/RegisterPage';
 import PrivateRoute from './components/shared/PrivateRoute';
 import StockDetailPage from './pages/StockDetail/StockDetailPage';
 import SettingsPage from './pages/Settings/SettingsPage';
-import AdminPage from './pages/Admin/AdminPage'; // <-- Import the new Admin page
+import AdminPage from './pages/Admin/AdminPage';
+import MyPortfoliosPage from './pages/MyPortfolios/MyPortfoliosPage';
+import PortfolioDetailPage from './pages/MyPortfolios/PortfolioDetailPage'; // <-- Import new detail page
 
 // Define the application routes
 const router = createBrowserRouter([
@@ -23,11 +25,10 @@ const router = createBrowserRouter([
     path: '/',
     element: <Layout />,
     children: [
-      // --- Public Routes ---
+      // ... (Public Routes)
       { index: true, element: <HomePage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
-
       // --- Protected Routes ---
       {
         path: '',
@@ -36,10 +37,12 @@ const router = createBrowserRouter([
           { path: 'momentum', element: <MomentumPage /> },
           { path: 'alpha', element: <AlphaPage /> },
           { path: 'portfolios', element: <ModelPortfoliosPage /> },
+          { path: 'my-portfolios', element: <MyPortfoliosPage /> },
+          { path: 'my-portfolios/:id', element: <PortfolioDetailPage /> }, // <-- Add new dynamic route
           { path: 'rebalance', element: <RebalancePage /> },
           { path: 'stocks/:ticker', element: <StockDetailPage /> },
           { path: 'settings', element: <SettingsPage /> },
-          { path: 'admin', element: <AdminPage /> }, // <-- Add the new admin route
+          { path: 'admin', element: <AdminPage /> },
         ],
       },
     ],
